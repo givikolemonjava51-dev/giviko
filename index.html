@@ -357,6 +357,19 @@ footer a { color: var(--muted); }
 .fb-acts { display: flex; justify-content: flex-end; align-items: center; gap: 12px; flex-wrap: wrap; }
 .fbl { display: grid; gap: 4px; padding: 12px 0; border-bottom: 1px solid var(--line); }
 .fbl:last-child { border-bottom: 0; }
+/* Progress: skill stars */
+.prog { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 4px 32px; }
+.sk { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.sk > b { font-size: 15px; }
+.stars { display: inline-flex; gap: 2px; font-size: 20px; line-height: 1; letter-spacing: 1px; white-space: nowrap; }
+.stars i { font-style: normal; color: var(--line); }
+.stars i.on { color: var(--accent); }
+.sk .up-mark { font-size: 12px; font-weight: 700; color: var(--ok); margin-left: 6px; }
+.prog-foot { margin-top: 14px; font-size: 14px; color: var(--muted); }
+.sk-pick { display: inline-flex; gap: 2px; }
+.sk-pick button { appearance: none; background: none; border: 0; padding: 2px; font-size: 26px; line-height: 1; cursor: pointer; color: var(--line); }
+.sk-pick button.on { color: var(--accent); }
+.sk-pick button:focus-visible { outline: 2px solid var(--accent); border-radius: 4px; }
 .fbl .d { font-size: 13px; color: var(--muted); }
 .fbl p { margin: 0; font-size: 15px; white-space: pre-wrap; }
 .st-cards .stat b { font-size: 44px; }
@@ -589,6 +602,12 @@ table.hist td.n { text-align: right; white-space: nowrap; }
       <div id="cabPasses"></div>
     </div>
   </div>
+  <section>
+    <div class="card">
+      <h2 class="panel-h" data-en="My progress">ჩემი პროგრესი</h2>
+      <div id="cabProgress"></div>
+    </div>
+  </section>
   <section id="cabFbSec" hidden>
     <div class="card">
       <h2 class="panel-h" data-en="Coach feedback">ტრენერის ფიდბექი</h2>
@@ -630,7 +649,7 @@ table.hist td.n { text-align: right; white-space: nowrap; }
       <button role="tab" aria-selected="true" data-tab="att">დასწრება</button>
       <button role="tab" aria-selected="false" data-tab="req">მოთხოვნები <span class="badge" id="reqBadge" hidden></span></button>
       <button role="tab" aria-selected="false" data-tab="mem">ჯგუფები <span class="badge" id="payBadge" hidden></span></button>
-      <button role="tab" aria-selected="false" data-tab="db">რეგისტრირებულები</button>
+      <button role="tab" aria-selected="false" data-tab="db">რეგისტრირებულები <span class="badge" id="skBadge" hidden title="პროგრესის განახლების დრო"></span></button>
       <button role="tab" aria-selected="false" data-tab="st">სტატისტიკა</button>
     </div>
     <div data-pane="att">
@@ -753,6 +772,21 @@ table.hist td.n { text-align: right; white-space: nowrap; }
   </form>
 </dialog>
 
+<!-- Coach: rate a student's skills (coach panel, Georgian only) -->
+<dialog id="skDlg">
+  <form class="dlg" id="skForm" novalidate>
+    <h3>პროგრესის შეფასება</h3>
+    <div class="meta"><span id="skWho"></span><b id="skWhen"></b></div>
+    <div id="skRows"></div>
+    <p class="hint" style="font-size:13px;margin:0">დააჭირე ვარსკვლავს, რომ შეაფასო 1-დან 5-მდე. იგივე ვარსკვლავზე მეორედ დაჭერა შეფასებას მოხსნის. მოსწავლე შეფასებას კაბინეტში „ჩემი პროგრესი“ ნაწილში ნახავს.</p>
+    <p class="msg" id="skMsg" role="status"></p>
+    <div class="actions">
+      <button class="btn btn-ghost" type="button" id="skClose">დახურვა</button>
+      <button class="btn btn-primary" type="submit" id="skBtn">შენახვა</button>
+    </div>
+  </form>
+</dialog>
+
 <!-- Student login / sign-up -->
 <dialog id="loginDlg">
   <form class="dlg" id="loginForm" novalidate>
@@ -812,6 +846,12 @@ const ppl = n => L(`${n} ადამიანი`, `${n} ${+n === 1 ? "person" 
 
 const CAPACITY = 4;
 const PASS = 8;
+// პროგრესი: უნარები და მათი სახელები; ემთხვევა Code.gs-ის SKILLS-ს
+const SKILLS = ["forehand", "backhand", "volley", "bandeja", "vibora", "positioning"];
+const SKILL_NAMES = { forehand: "Forehand", backhand: "Backhand", volley: "Volley", bandeja: "Bandeja", vibora: "Vibora", positioning: "Positioning" };
+const SKILL_EVERY = 4;
+const starsHtml = n => `<span class="stars" role="img" aria-label="${n} / 5">${[1, 2, 3, 4, 5].map(i => `<i${i <= n ? ' class="on"' : ""}>${i <= n ? "★" : "☆"}</i>`).join("")}</span>`;
+const skDue = pr => !!pr && (pr.skills ? pr.since >= (pr.every || SKILL_EVERY) : pr.since > 0);
 const PRICES = { 1: 140, 2: 180, 3: 210, 4: 240 };
 // ინდივიდუალური ვარჯიშის ფასი ხანგრძლივობის (წუთი) და ადამიანების მიხედვით; ემთხვევა Code.gs-ს
 const DUR_PRICES = {
@@ -1368,6 +1408,17 @@ function renderCabinet() {
   const waits = (p.waitlist || []).map(w => `<div class="wrow"><span>${L("მოლოდინის სიაში:", "On the waiting list:")} <b>${esc(gLabel(w.group) || w.label)}</b></span><button class="btn btn-ghost btn-sm" type="button" data-leave="${esc(w.id)}">${L("გამოსვლა", "Leave")}</button></div>`).join("");
   $("cabPasses").innerHTML = passes || waits ? passes + waits : `<p class="empty">${L('ჯგუფური აბონემენტი არ გაქვს. 400 ₾ = 8 ვარჯიში. <a href="#groups">აირჩიე ჯგუფი</a>', 'You don\'t have a group pass. 400 ₾ = 8 sessions. <a href="#groups">Pick a group</a>')}</p>`;
 
+  const pr = p.progress || { skills: null, since: 0 }, every = pr.every || SKILL_EVERY, left = Math.max(0, every - pr.since);
+  $("cabProgress").innerHTML = `<div class="prog">${SKILLS.map(k => {
+    const v = pr.skills ? pr.skills[k] || 0 : 0, up = pr.prev && v > (pr.prev[k] || 0);
+    return `<div class="sk"><b>${SKILL_NAMES[k]}${up ? `<span class="up-mark" title="${L("გაუმჯობესდა წინა შეფასებასთან შედარებით", "Improved since the last rating")}">↑ +${v - (pr.prev[k] || 0)}</span>` : ""}</b>${starsHtml(v)}</div>`;
+  }).join("")}</div>
+  <p class="prog-foot">${!pr.skills
+    ? L("ტრენერი შენს უნარებს პირველი ვარჯიშების შემდეგ შეაფასებს და აქ დაინახავ, როგორ იზრდები.", "Your coach will rate your skills after your first sessions, and you'll see your progress here.")
+    : L(`ბოლო განახლება: ${niceDate(pr.date)}. `, `Last updated: ${niceDate(pr.date)}. `) + (left
+      ? L(`შემდეგი შეფასება ${left} ვარჯიშის შემდეგ.`, `Next rating after ${left} more ${left === 1 ? "session" : "sessions"}.`)
+      : L("ტრენერი მალე განაახლებს შეფასებას.", "Your coach will update your rating soon."))}</p>`;
+
   const fbl = p.feedback || [];
   $("cabFbSec").hidden = !fbl.length;
   $("cabFeedback").innerHTML = fbl.map(f => `<div class="fbl"><span class="d">${esc(niceDate(f.date))} · ${esc(trData(f.label))}</span><p>${esc(f.text)}</p></div>`).join("");
@@ -1464,7 +1515,7 @@ let trDate = todayStr(), trTab = "att", trDay = null, trMarks = {};
 function trainerInit() {
   $("trLogin").hidden = !!aToken;
   $("trPanel").hidden = !aToken;
-  if (aToken) { loadDay(); loadRequests(); loadMembers(); }
+  if (aToken) { loadDay(); loadRequests(); loadMembers(); loadStudents(); }
 }
 function trFail(res) {
   if (res.error === "auth") { aToken = null; store.set("gv_a", null); trainerInit(); say($("trLoginMsg"), errText("auth"), "err"); return; }
@@ -1792,8 +1843,10 @@ function renderStudents() {
   const q = $("dbSearch").value.trim().toLowerCase(), qd = q.replace(/\D/g, "");
   const rows = dbRows.filter(s => !q || s.name.toLowerCase().includes(q) || (qd && s.phone.includes(qd)));
   $("dbCount").textContent = `სულ ${dbRows.length} რეგისტრირებული` + (q ? ` · ნაპოვნია ${rows.length}` : "");
+  const due = dbRows.filter(s => skDue(s.progress)).length;
+  $("skBadge").hidden = !due; $("skBadge").textContent = due;
   $("dbList").innerHTML = rows.length ? `<table class="hist db">
-    <thead><tr><th>სახელი</th><th>ტელეფონი</th><th>რეგისტრაცია</th><th>ჯგუფი</th><th>დარჩა</th><th>ვარჯიშები</th><th>ბოლო ვარჯიში</th><th>ინდ.</th></tr></thead>
+    <thead><tr><th>სახელი</th><th>ტელეფონი</th><th>რეგისტრაცია</th><th>ჯგუფი</th><th>დარჩა</th><th>ვარჯიშები</th><th>ბოლო ვარჯიში</th><th>ინდ.</th><th>პროგრესი</th></tr></thead>
     <tbody>${rows.map(s => `<tr>
       <td><b>${esc(s.name)}</b></td>
       <td class="d">${fmtPhone(s.phone)}</td>
@@ -1803,15 +1856,59 @@ function renderStudents() {
       <td>${s.attended}</td>
       <td class="d">${esc(s.last) || "—"}</td>
       <td>${s.individual || "—"}</td>
+      <td>${skCell(s)}</td>
     </tr>`).join("")}</tbody></table>`
     : `<p class="empty">${dbRows.length ? "ვერაფერი მოიძებნა." : "ჯერ არავინ დარეგისტრირებულა."}</p>`;
 }
 $("dbSearch").addEventListener("input", renderStudents);
 
+// Progress: coach rates each skill 1-5; reminder after every SKILL_EVERY attended sessions
+function skCell(s) {
+  const pr = s.progress || {}, vals = pr.skills ? SKILLS.map(k => pr.skills[k] || 0).filter(Boolean) : [];
+  const avg = vals.length ? (vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(1) : "";
+  return `<button type="button" class="chip-btn" data-sk="${esc(s.phone)}">${avg ? "★ " + avg : "შეფასება"}</button>`
+    + (skDue(pr) ? ` <span class="chip wait" title="${pr.skills ? `ბოლო შეფასების შემდეგ ${pr.since} ვარჯიში` : "ჯერ არ შეფასებულა"}">${pr.skills ? "განახლების დრო" : "შესაფასებელი"}</span>` : "");
+}
+const skDlg = $("skDlg");
+let skPhone = null, skVals = {};
+function skRender() {
+  $("skRows").innerHTML = SKILLS.map(k => `<div class="sk"><b>${SKILL_NAMES[k]}</b><span class="sk-pick" role="group" aria-label="${SKILL_NAMES[k]}">${[1, 2, 3, 4, 5].map(i =>
+    `<button type="button" data-k="${k}" data-v="${i}" class="${i <= (skVals[k] || 0) ? "on" : ""}" aria-label="${SKILL_NAMES[k]}: ${i}" aria-pressed="${i === skVals[k]}">${i <= (skVals[k] || 0) ? "★" : "☆"}</button>`).join("")}</span></div>`).join("");
+}
+$("dbList").addEventListener("click", e => {
+  const b = e.target.closest("[data-sk]"); if (!b) return;
+  const s = dbRows.find(x => x.phone === b.dataset.sk); if (!s) return;
+  const pr = s.progress || {};
+  skPhone = s.phone; skVals = { ...(pr.skills || {}) };
+  $("skWho").textContent = s.name;
+  $("skWhen").textContent = pr.skills ? `ბოლო: ${pr.date} · მას შემდეგ ${pr.since} ვარჯიში` : `ჯერ არ შეფასებულა · ${s.attended} ვარჯიში`;
+  say($("skMsg"), ""); $("skBtn").disabled = false;
+  skRender(); skDlg.showModal();
+});
+$("skRows").addEventListener("click", e => {
+  const b = e.target.closest("[data-k]"); if (!b) return;
+  const v = +b.dataset.v; skVals[b.dataset.k] = skVals[b.dataset.k] === v ? 0 : v;
+  skRender(); say($("skMsg"), "");
+});
+$("skClose").addEventListener("click", () => skDlg.close());
+skDlg.addEventListener("click", e => { if (e.target === skDlg) skDlg.close(); });
+$("skForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  $("skBtn").disabled = true;
+  try {
+    const res = await api({ action: "admin_skills", token: aToken, phone: skPhone, skills: skVals });
+    if (!res.ok) { $("skBtn").disabled = false; if (res.error === "auth") { skDlg.close(); return trFail(res); } return say($("skMsg"), errText(res.error), "err"); }
+    const s = dbRows.find(x => x.phone === res.phone); if (s) s.progress = res.progress;
+    renderStudents();
+    say($("skMsg"), "შენახულია, მოსწავლე კაბინეტში ნახავს", "ok");
+    setTimeout(() => skDlg.close(), 900);
+  } catch (err) { $("skBtn").disabled = false; say($("skMsg"), errText(), "err"); }
+});
+
 /* ================= DEMO BACKEND =================
    მუშაობს მხოლოდ მაშინ, როცა API_URL ცარიელია. მონაცემები მეხსიერებაშია. */
 // დემო: რეალური სურათი — ნინო (mw-19), მოსწავლე 2 (tt-20), მოსწავლე 3 (tt-21) + საიტის გარეშე დაკავებული
-const M = { students: [], groups: [], inds: [], att: [], wait: [], changes: [], fb: [], seq: 100, reserved: { "mw-19": 0, "mw-20": 4, "mw-21": 4, "mw-22": 0, "tt-19": 4, "tt-20": 0, "tt-21": 2, "tt-22": 0, "ss-09": 0, "ss-10": 0, "ss-18": 4 } };
+const M = { students: [], groups: [], inds: [], att: [], wait: [], changes: [], fb: [], sk: [], seq: 100, reserved: { "mw-19": 0, "mw-20": 4, "mw-21": 4, "mw-22": 0, "tt-19": 4, "tt-20": 0, "tt-21": 2, "tt-22": 0, "ss-09": 0, "ss-10": 0, "ss-18": 4 } };
 function mockSeed() {
   const t = todayStr();
   const past = (days, n) => { const out = []; let d = addDays(t, -1); while (out.length < n) { if (days.includes(parseYmd(d).getDay())) out.push(d); d = addDays(d, -1); } return out.reverse(); };
@@ -1824,8 +1921,11 @@ function mockSeed() {
     { id: "G2", group: "tt-20", name: "დემო მოსწავლე 2", phone: "555000002", active: true, purchased: 8, created: addDays(t, -20) },
     { id: "G3", group: "tt-21", name: "დემო მოსწავლე 3", phone: "555000003", active: true, purchased: 8, created: addDays(t, -10) });
   past([1, 3], 6).forEach((d, i) => M.att.push({ date: d, kind: "ჯგუფური", label: GROUPS["mw-19"].label, member: "G1", phone: "555000000", status: i === 2 ? "გააცდინა" : "მოვიდა" }));
+  past([2, 4], 4).forEach(d => M.att.push({ date: d, kind: "ჯგუფური", label: GROUPS["tt-20"].label, member: "G2", phone: "555000002", status: "მოვიდა" }));
   const md = past([1, 3], 1)[0];
   M.fb.push({ date: md, member: "G1", phone: "555000000", label: GROUPS["mw-19"].label, text: "კარგი ვარჯიში იყო! ფორჰენდი გაცილებით სტაბილურია. შემდეგზე ვიმუშაოთ ბანდეხაზე და კედლიდან ასხლეტილ ბურთზე." });
+  M.sk.push({ date: addDays(t, -14), phone: "555000000", lessons: 1, forehand: 3, backhand: 2, volley: 2, bandeja: 1, vibora: 1, positioning: 2 },
+    { date: md, phone: "555000000", lessons: 5, forehand: 4, backhand: 3, volley: 3, bandeja: 2, vibora: 1, positioning: 3 });
   M.inds.push({ id: "I0", people: 1, duration: 90, price: 210, date: addDays(t, -3), time: "17:00", name: "დემო მოსწავლე 4", phone: "555000004", experience: "სრულიად დამწყები", status: "ჩატარდა" });
   M.inds.push({ id: "I1", people: 2, duration: 90, price: 270, date: addDays(t, 3), time: "18:00", name: "ნინო (დემო)", phone: "555000000", experience: "0-1 წელი", status: "დადასტურებული" },
     { id: "I2", people: 1, price: 140, date: addDays(t, 2), time: "12:00", name: "დემო მოსწავლე 4", phone: "555000004", experience: "სრულიად დამწყები", status: "ახალი" });
@@ -1847,6 +1947,13 @@ function mockApi(d) {
   };
   const admin = () => { if (d.token !== "a") fail("auth"); };
   const wl = () => M.wait.filter(w => w.status === "active");
+  const attended = phone => M.att.filter(a => a.phone === phone && a.status === "მოვიდა").length;
+  const skills = phone => {
+    const rows = M.sk.filter(x => x.phone === phone).sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+    const pick = x => Object.fromEntries(SKILLS.map(k => [k, x[k] || 0])), last = rows[rows.length - 1], prev = rows[rows.length - 2];
+    if (!last) return { skills: null, since: attended(phone), every: SKILL_EVERY };
+    return { skills: pick(last), prev: prev ? pick(prev) : null, date: last.date, since: Math.max(0, attended(phone) - last.lessons), every: SKILL_EVERY };
+  };
   const pubChg = c => ({ ...c, label: (GROUPS[(M.groups.find(g => g.id === c.ref) || {}).group] || {}).label || "" });
   const prof = phone => {
     const s = M.students.find(x => x.phone === phone); if (!s) fail("auth");
@@ -1857,6 +1964,7 @@ function mockApi(d) {
       individual: M.inds.filter(r => r.phone === phone && r.status !== "გაუქმებული").map(r => ({ ...r })),
       waitlist: wl().filter(w => w.phone === phone).map(w => ({ id: w.id, group: w.group, label: GROUPS[w.group].label })),
       changes: M.changes.filter(c => c.phone === phone).map(c => ({ ...c })),
+      progress: skills(phone),
       feedback: M.fb.filter(f => f.phone === phone && f.text).sort((a, b) => (a.date < b.date ? 1 : -1)).map(f => ({ date: f.date, label: f.label, text: f.text })),
       history: att.slice().sort((a, b) => (a.date < b.date ? 1 : -1)).map(a => ({ date: a.date, kind: a.kind, label: a.label, status: a.status })),
       stats: { attended: att.filter(a => a.status === "მოვიდა").length, missed: att.filter(a => a.status === "გააცდინა").length, month: att.filter(a => a.status === "მოვიდა" && a.date.slice(0, 7) === month).length },
@@ -1971,6 +2079,15 @@ function mockApi(d) {
         else if (text) M.fb.push({ date: d.date, member: d.member, phone: src.phone, text, label: g ? GROUPS[g.group].label : `ინდივიდუალური · ${durText(rDur(r))}` });
         return { ok: true, member: d.member, feedback: text };
       }
+      case "admin_skills": {
+        admin();
+        const s = M.students.find(x => x.phone === key(d.phone)); if (!s) fail("invalid");
+        const row = { date: todayStr(), phone: s.phone, lessons: attended(s.phone) };
+        SKILLS.forEach(k => (row[k] = Math.max(0, Math.min(5, Math.round(Number((d.skills || {})[k]) || 0)))));
+        const i = M.sk.findIndex(x => x.phone === s.phone && x.date === row.date);
+        if (i >= 0) M.sk[i] = row; else M.sk.push(row);
+        return { ok: true, phone: s.phone, progress: skills(s.phone) };
+      }
       case "admin_stats": {
         admin(); if (!d.from || !d.to || d.from > d.to) fail("invalid");
         const now = todayStr() + " " + nowHM(), out = [], over = (date, end) => date + " " + end <= now;
@@ -1998,7 +2115,7 @@ function mockApi(d) {
         const done = M.att.filter(a => a.phone === s.phone && a.status === "მოვიდა").map(a => a.date).sort();
         return { name: s.name, phone: s.phone, created: s.created, groups: mine.map(g => GROUPS[g.group].label),
           remaining: mine.length ? mine.reduce((x, g) => x + Math.max(0, g.purchased - used(g.id)), 0) : null,
-          attended: done.length, last: done[done.length - 1] || "", individual: M.inds.filter(r => r.phone === s.phone && r.status !== "გაუქმებული").length };
+          attended: done.length, last: done[done.length - 1] || "", progress: skills(s.phone), individual: M.inds.filter(r => r.phone === s.phone && r.status !== "გაუქმებული").length };
       }).sort((a, b) => (a.created < b.created ? 1 : -1)) };
       case "admin_renew": { admin(); const g = M.groups.find(x => x.id === d.member); if (!g) fail("invalid"); g.purchased += d.add; g.renew = false; return mems(); }
       case "admin_confirm_payment": { admin(); const g = M.groups.find(x => x.id === d.member); if (!g) fail("invalid"); g.pending = false; return mems(); }
