@@ -14,6 +14,12 @@ const TZ = "Asia/Tbilisi";
 const CAPACITY = 4;
 const PASS = 8;
 const PRICES = { 1: 140, 2: 180, 3: 210, 4: 240 };
+// ინდივიდუალური ვარჯიშის ფასი ხანგრძლივობის (წუთი) და ადამიანების მიხედვით
+const DUR_PRICES = {
+  60: PRICES,
+  90: { 1: 210, 2: 270, 3: 315, 4: 360 },
+  120: { 1: 280, 2: 360, 3: 420, 4: 480 },
+};
 const EXPERIENCE = ["სრულიად დამწყები", "0-1 წელი", "1+ წელი"];
 const SCHEDULE = [
   { key: "mw", label: "ორშაბათი-ოთხშაბათი", days: [1, 3], hours: ["19:00", "20:00", "21:00", "22:00"] },
@@ -33,7 +39,7 @@ const SESSION_DAYS = 180, ADMIN_HOURS = 12, MAX_TRIES = 5;
 const TABLES = {
   Students: ["phone", "name", "pinHash", "created"],
   Groups: ["id", "group", "name", "phone", "active", "pending", "purchased", "created", "renew"],
-  Requests: ["id", "people", "price", "date", "time", "name", "phone", "experience", "status", "created", "note"],
+  Requests: ["id", "people", "price", "date", "time", "name", "phone", "experience", "status", "created", "note", "duration"],
   Attendance: ["date", "kind", "label", "member", "phone", "status"],
   Reserved: ["group", "count"],
   Waitlist: ["id", "group", "name", "phone", "status", "created"],
@@ -118,6 +124,11 @@ const bool_ = v => v === true || v === "TRUE" || v === "true" || v === "1";
 const fail_ = code => { throw { code }; };
 const isDate_ = s => /^\d{4}-\d{2}-\d{2}$/.test(s || "");
 const isTime_ = s => /^\d{2}:\d{2}$/.test(s || "");
+const mins_ = s => +s.slice(0, 2) * 60 + +s.slice(3);
+const hhmm_ = m => pad_(Math.floor(m / 60)) + ":" + pad_(m % 60);
+const dur_ = r => Number(r.duration) || 60; // ძველ ჩანაწერებში ხანგრძლივობა ცარიელია = 1 საათი
+const durText_ = m => (m / 60) + " სთ";
+const endTime_ = r => hhmm_(mins_(r.time) + dur_(r));
 const weekday_ = s => { const [y, m, d] = s.split("-").map(Number); return new Date(Date.UTC(y, m - 1, d)).getUTCDay(); };
 
 function secret_() {
@@ -278,7 +289,7 @@ function route_(d, db) {
       else sessions.push({ kind: "makeup", ref: c.id, time: c.newTime, label: "ანაზღაურებითი ვარჯიში", members: [row] });
     });
     inds().filter(r => r.date === d.date && r.status !== "გაუქმებული").forEach(r => sessions.push({
-      kind: "individual", ref: r.id, time: r.time, label: `ინდივიდუალური · ${r.people} ადამიანი · ${r.price} ₾`,
+      kind: "individual", ref: r.id, time: r.time, label: `ინდივიდუალური · ${r.time}-${endTime_(r)} · ${r.people} ადამიანი · ${r.price} ₾`,
       members: [{ id: r.id, name: r.name, phone: r.phone, mark: mark(r.id) }] }));
     sessions.sort((a, b) => (a.time < b.time ? -1 : 1));
     return { ok: true, date: d.date, sessions };
@@ -317,11 +328,12 @@ function route_(d, db) {
     case "individual": {
       if (!d.token) fail_("login_required");
       if (!EXPERIENCE.includes(d.experience)) fail_("experience");
-      const s = who(), people = Number(d.people);
-      if (!PRICES[people]) fail_("invalid");
+      const s = who(), people = Number(d.people), duration = Number(d.duration) || 60;
+      if (!DUR_PRICES[duration] || !DUR_PRICES[duration][people]) fail_("invalid");
+      if (mins_(d.time || "00:00") + duration > 24 * 60) fail_("invalid");
       if (!/^\d{4}-\d{2}-\d{2}$/.test(d.date || "") || !/^\d{2}:00$/.test(d.time || "")) fail_("invalid");
       if (d.date < today_()) fail_("past");
-      const r = db.add("Requests", { id: db.nextId("I"), people, price: PRICES[people], date: d.date, time: d.time, name: s.name, phone: s.phone, experience: d.experience, status: "ახალი", created: today_() });
+      const r = db.add("Requests", { id: db.nextId("I"), people, duration, price: DUR_PRICES[duration][people], date: d.date, time: d.time, name: s.name, phone: s.phone, experience: d.experience, status: "ახალი", created: today_() });
       notify_("ახალი ინდივიდუალური მოთხოვნა", reqLines_(r));
       return { ok: true, token: sToken(s.phone) };
     }
@@ -438,7 +450,7 @@ function route_(d, db) {
         if (ex && !m.status) db.remove("Attendance", ex);
         else if (ex) { ex.status = m.status; db.save("Attendance", ex); }
         else if (m.status) db.add("Attendance", { date: d.date, kind: g ? "ჯგუფური" : "ინდივიდუალური",
-          label: g ? (GROUPS[g.group] || {}).label : `ინდივიდუალური · ${r.people} ადამიანი`, member: m.member, phone: src.phone, status: m.status });
+          label: g ? (GROUPS[g.group] || {}).label : `ინდივიდუალური · ${durText_(dur_(r))} · ${r.people} ადამიანი`, member: m.member, phone: src.phone, status: m.status });
       });
       return day();
     }
@@ -496,13 +508,13 @@ function route_(d, db) {
 }
 
 function pubReq_(r) {
-  return { id: r.id, people: Number(r.people), price: Number(r.price), date: r.date, time: r.time, name: r.name, phone: r.phone, experience: r.experience, status: r.status, note: r.note || "" };
+  return { id: r.id, people: Number(r.people), duration: dur_(r), price: Number(r.price), date: r.date, time: r.time, name: r.name, phone: r.phone, experience: r.experience, status: r.status, note: r.note || "" };
 }
 function pubChg_(c) {
   return { id: c.id, kind: c.kind, ref: c.ref, name: c.name, phone: c.phone, date: c.date, time: c.time, action: c.action, newDate: c.newDate, newTime: c.newTime, status: c.status };
 }
 function reqLines_(r) {
-  return ["სახელი: " + r.name, "ტელეფონი: " + r.phone, "თარიღი: " + r.date + " " + r.time, "ადამიანი: " + r.people + " · " + r.price + " ₾", "გამოცდილება: " + r.experience];
+  return ["სახელი: " + r.name, "ტელეფონი: " + r.phone, "თარიღი: " + r.date + " " + r.time + "-" + endTime_(r), "ხანგრძლივობა: " + durText_(dur_(r)), "ადამიანი: " + r.people + " · " + r.price + " ₾", "გამოცდილება: " + r.experience];
 }
 
 /* ---------- შეტყობინებები: მეილი + WhatsApp ---------- */
@@ -579,6 +591,6 @@ function installReminders() {
 function setup() {
   const ss = book_();
   console.log("ცხრილი: " + ss.getUrl());
-  notify_("ახალი ინდივიდუალური მოთხოვნა", reqLines_({ name: "ტესტი", phone: "555123456", date: today_(), time: "19:00", people: 2, price: PRICES[2], experience: EXPERIENCE[1] }));
+  notify_("ახალი ინდივიდუალური მოთხოვნა", reqLines_({ name: "ტესტი", phone: "555123456", date: today_(), time: "19:00", people: 2, duration: 90, price: DUR_PRICES[90][2], experience: EXPERIENCE[1] }));
   console.log("სატესტო შეტყობინება გაიგზავნა" + (NOTIFY_EMAIL ? " მეილზე" : "") + (WHATSAPP_PHONE && CALLMEBOT_APIKEY ? " და WhatsApp-ში" : ""));
 }
