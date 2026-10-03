@@ -6,6 +6,8 @@
 <title>Giviko — ვარჯიშები</title>
 <meta name="theme-color" content="#0B1418">
 <meta name="description" content="დაჯავშნე ინდივიდუალური ან ჯგუფური ვარჯიში Giviko-სთან.">
+<link rel="preconnect" href="https://script.google.com">
+<link rel="preconnect" href="https://script.googleusercontent.com">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+Georgian:wdth,wght@62.5..100,400..900&family=JetBrains+Mono:wght@500;700&display=swap">
@@ -627,9 +629,13 @@ const store = {
   get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
   set(k, v) { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch (e) {} },
 };
+// ბოლოს ჩატვირთული მონაცემები ინახება ბრაუზერში, რომ გვერდი მაშინვე გამოჩნდეს,
+// სანამ სერვერიდან ახალი ციფრები მოვა.
+const saved = k => { try { return JSON.parse(store.get(k)); } catch (e) { return null; } };
+const keep = (k, v) => store.set(k, v == null ? null : JSON.stringify(v));
 let sToken = store.get("gv_s");
 let aToken = store.get("gv_a");
-let profile = null;
+let profile = sToken ? saved("gv_p") : null;
 
 /* ---------- API ---------- */
 const DEMO = !API_URL;
@@ -698,11 +704,11 @@ $("acctBtn").addEventListener("click", () => { sToken ? (location.hash = "cabine
 
 function setStudent(token, prof) {
   sToken = token; store.set("gv_s", token);
-  if (prof) profile = prof;
+  if (prof) { profile = prof; keep("gv_p", prof); }
   renderAccount();
 }
 function logout() {
-  sToken = null; profile = null; store.set("gv_s", null);
+  sToken = null; profile = null; store.set("gv_s", null); keep("gv_p", null);
   renderAccount(); location.hash = ""; renderSchedule();
 }
 $("logoutBtn").addEventListener("click", logout);
@@ -762,7 +768,7 @@ $("priceRows").innerHTML = Object.entries(PRICES).map(([n, p]) =>
   `<div class="ptile">${peopleIcon(+n)}<span class="pn">${n} ადამ.</span><b>${p} ₾</b><span class="pp">${Math.round(p / n)} ₾ / ადამ.</span></div>`).join("");
 
 /* ---------- Schedule ---------- */
-let counts = null;
+let counts = saved("gv_c");
 const daysEl = $("days");
 let selDay = null;
 function freeIn(day) { return day.hours.reduce((s, h) => s + Math.max(0, CAPACITY - (counts[gid(day, h)] || 0)), 0); }
@@ -804,8 +810,9 @@ async function loadCounts() {
     const res = await apiGet();
     if (!res.ok) throw new Error();
     counts = res.counts || {};
+    keep("gv_c", counts);
     $("loadErr").hidden = true;
-  } catch (e) { $("loadErr").hidden = false; }
+  } catch (e) { if (!counts) $("loadErr").hidden = false; }
   renderSchedule();
 }
 
@@ -891,7 +898,7 @@ grpForm.addEventListener("submit", async e => {
   grpBtn.disabled = true; grpBtn.textContent = "იგზავნება…";
   try {
     const res = await api({ action: "group", group: currentGroup, ...guestFields("grpName", "grpPhone", "grpPin") });
-    if (res.counts) counts = res.counts;
+    if (res.counts) { counts = res.counts; keep("gv_c", counts); }
     if (res.ok) {
       setStudent(res.token);
       const typed = $("grpName").value;
@@ -946,7 +953,7 @@ async function refreshProfile() {
   if (!sToken) return;
   try {
     const res = await api({ action: "me", token: sToken });
-    if (res.ok) { profile = res.profile; renderAccount(); renderSchedule(); }
+    if (res.ok) { profile = res.profile; keep("gv_p", profile); renderAccount(); renderSchedule(); }
     else if (res.error === "auth") logout();
   } catch (e) {}
 }
@@ -1369,6 +1376,7 @@ if (DEMO) {
   // demo tokens from another (real) setup are meaningless here
   if (sToken && !sToken.startsWith("s:")) sToken = null;
   if (aToken && aToken !== "a") aToken = null;
+  counts = null; profile = null; // real data saved by the live site
 }
 $("yr").textContent = new Date().getFullYear();
 renderAccount();

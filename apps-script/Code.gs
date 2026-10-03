@@ -145,18 +145,39 @@ function json_(o) {
 
 const WRITES = ["group", "individual", "register", "admin_mark", "admin_update_request", "admin_renew", "admin_confirm_payment", "admin_cancel_member"];
 
+// ხშირი წაკითხვები (განრიგი, კაბინეტი) ინახება ქეშში, რომ ცხრილი ყოველ ჯერზე არ გაიხსნას.
+// ნებისმიერი ჩაწერა ქეშს აახლებს; ცხრილში ხელით შეცვლილი ციფრი საიტზე მაქსიმუმ CACHE_SEC წამში ჩანს.
+const CACHE_SEC = 60;
+const CACHED = ["counts", "me"];
+
 function handle_(d) {
+  d = d || {};
   const lock = WRITES.includes(d.action) ? LockService.getScriptLock() : null;
+  const cache = CacheService.getScriptCache();
+  let ck = null;
+  if (CACHED.includes(d.action)) {
+    const sub = d.action === "me" ? readToken_(d.token, "s") : "all";
+    if (sub) {
+      ck = "r:" + (cache.get("ver") || "0") + ":" + d.action + ":" + sub;
+      const hit = cache.get(ck);
+      if (hit) return JSON.parse(hit);
+    }
+  }
   try {
     if (lock) lock.waitLock(20000);
-    const res = route_(d || {}, Db_());
+    const res = route_(d, Db_());
+    if (ck && res && res.ok) { try { cache.put(ck, JSON.stringify(res), CACHE_SEC); } catch (e) {} }
     return res;
   } catch (e) {
     if (e && e.code) return { ok: false, error: e.code };
     console.error(e && e.stack || e);
     return { ok: false, error: "server" };
   } finally {
-    if (lock) { SpreadsheetApp.flush(); lock.releaseLock(); }
+    if (lock) {
+      SpreadsheetApp.flush();
+      cache.put("ver", String(Date.now()), 21600); // ძველი ქეში აღარ გამოიყენება
+      lock.releaseLock();
+    }
   }
 }
 
