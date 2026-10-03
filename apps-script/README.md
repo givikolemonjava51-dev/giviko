@@ -22,7 +22,7 @@ notifyNewRequest("group", { name, phone, group, label });
 ცვლადების სახელები თქვენს კოდს მოარგეთ.
 
 ## 3. WhatsApp გასაღები (CallMeBot, უფასო)
-1. თქვენს ტელეფონში შეინახეთ კონტაქტი **+34 694 29 84 96**.
+1. გახსენით https://www.callmebot.com/blog/free-api-whatsapp-messages/ და შეინახეთ იქ მითითებული ბოტის ნომერი კონტაქტებში.
 2. WhatsApp-ით გაუგზავნეთ: `I allow callmebot to send me messages`
 3. პასუხად მოგივათ apikey.
 
