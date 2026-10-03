@@ -169,6 +169,10 @@ fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
 .seg label b.t { font-family: var(--body); font-stretch: 100%; font-weight: 700; font-size: 14px; line-height: 1.3; padding-block: 4px; }
 .seg input:checked + label { border-color: var(--accent); background: var(--accent-soft); }
 .seg input:focus-visible + label { outline: 3px solid var(--accent); outline-offset: 2px; }
+.free-next { display: grid; gap: 8px; font-size: 13px; color: var(--muted); }
+.free-next div { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip-btn { font: inherit; font-size: 13px; font-weight: 700; padding: 6px 11px; border-radius: 999px; border: 1.5px solid var(--line); background: var(--bg); color: var(--ink); cursor: pointer; font-variant-numeric: tabular-nums; }
+.chip-btn:hover { border-color: var(--accent); background: var(--accent-soft); }
 .total { display: flex; justify-content: space-between; align-items: baseline; padding-top: 14px; border-top: 1px dashed var(--line); }
 .total b { font-family: var(--display); font-stretch: 62.5%; font-weight: 900; font-size: 32px; }
 .msg { font-size: 14px; margin: 0; }
@@ -483,6 +487,7 @@ footer a { color: var(--muted); }
             <select id="indTime" required></select>
           </div>
         </div>
+        <div class="free-next" id="freeNext" hidden></div>
         <div class="as-user" data-member-only hidden></div>
         <div class="gate" data-guest-only>
           <b>ჯერ დარეგისტრირდი</b>
@@ -795,6 +800,7 @@ async function api(body) {
 }
 const ERR = {
   full: "ეს ჯგუფი უკვე სავსეა. აირჩიე სხვა დრო.",
+  slot_taken: "ეს დრო უკვე დაკავებულია. აირჩიე სხვა თავისუფალი დრო.",
   already: "ამ ჯგუფში უკვე ჩაწერილი ხარ.",
   invalid: "შეამოწმე სახელი და ტელეფონის ნომერი (9 ციფრი, 5-ით იწყება).",
   pin_format: "PIN უნდა იყოს ზუსტად 4 ციფრი.",
@@ -967,6 +973,7 @@ async function loadCounts() {
     if (!res.ok) throw new Error();
     counts = res.counts || {};
     keep("gv_c", counts);
+    setFree(res.free);
     $("loadErr").hidden = true;
   } catch (e) { if (!counts) $("loadErr").hidden = false; }
   renderSchedule();
@@ -1103,8 +1110,34 @@ seg.innerHTML = Object.entries(PRICES).map(([n, p]) =>
   `<input type="radio" name="people" id="p${n}" value="${n}" ${n === "1" ? "checked" : ""}><label for="p${n}"><b>${n}</b><span>${p} ₾</span></label>`).join("");
 seg.addEventListener("change", () => { $("indTotal").textContent = PRICES[seg.querySelector("input:checked").value] + " ₾"; });
 const timeSel = $("indTime");
-timeSel.innerHTML = '<option value="">აირჩიე</option>' + Array.from({ length: 15 }, (_, i) => `<option>${pad(i + 8)}:00</option>`).join("");
+const ALL_HOURS = Array.from({ length: 15 }, (_, i) => `${pad(i + 8)}:00`);
+// ტრენერის თავისუფალი საათები სერვერიდან; null ნიშნავს, რომ ჯერ არ არის შევსებული და ყველა საათი ჩანს
+let freeSlots = null;
+function fillTimes() {
+  const keepT = timeSel.value, date = $("indDate").value;
+  const list = !freeSlots ? ALL_HOURS : date ? freeSlots[date] || [] : [];
+  timeSel.innerHTML = freeSlots && !date ? '<option value="">ჯერ აირჩიე დღე</option>'
+    : freeSlots && !list.length ? '<option value="">ამ დღეს თავისუფალი დრო არ არის</option>'
+    : '<option value="">აირჩიე</option>' + list.map(t => `<option>${t}</option>`).join("");
+  if (list.includes(keepT)) timeSel.value = keepT;
+}
+function setFree(f) {
+  freeSlots = f || null;
+  const box = $("freeNext"), next = [];
+  if (freeSlots) Object.keys(freeSlots).sort().forEach(d => freeSlots[d].forEach(t => next.length < 8 && next.push([d, t])));
+  box.hidden = !freeSlots;
+  box.innerHTML = !freeSlots ? "" : next.length
+    ? `<span>უახლოესი თავისუფალი დროები</span><div>${next.map(([d, t]) => `<button type="button" class="chip-btn" data-d="${d}" data-t="${t}">${dayWord(d)}, ${t}</button>`).join("")}</div>`
+    : "<span>უახლოეს დღეებში თავისუფალი დრო არ მაქვს. მომწერე WhatsApp-ზე და მოვძებნით.</span>";
+  fillTimes();
+}
+$("freeNext").addEventListener("click", e => {
+  const b = e.target.closest("[data-d]"); if (!b) return;
+  $("indDate").value = b.dataset.d; fillTimes(); timeSel.value = b.dataset.t;
+});
+$("indDate").addEventListener("change", fillTimes);
 $("indDate").min = todayStr();
+fillTimes();
 
 $("indForm").addEventListener("submit", async e => {
   e.preventDefault();
@@ -1122,6 +1155,7 @@ $("indForm").addEventListener("submit", async e => {
     if (res.ok) {
       setStudent(res.token);
       $("indForm").reset(); $("p1").checked = true; $("indTotal").textContent = PRICES[1] + " ₾";
+      if (res.free !== undefined) setFree(res.free); else fillTimes();
       await refreshProfile();
       say(msg, "მოთხოვნა მიღებულია! დაგიკავშირდები დროის დასადასტურებლად. სტატუსს კაბინეტში ნახავ.", "ok");
     } else { afterAuthFail(res); say(msg, errText(res.error), "err"); }
@@ -1584,6 +1618,17 @@ function mockApi(d) {
   const fail = c => { throw { code: c }; };
   const key = p => { let x = String(p || "").replace(/\D/g, ""); return x.length > 9 ? x.slice(-9) : x; };
   const used = id => M.att.filter(a => a.member === id).length;
+  // დემო: ტრენერის თავისუფალი საათები (რეალურ საიტზე მოდის ფურცლიდან Free)
+  const free = () => {
+    const out = {}, t = todayStr(), now = nowHM();
+    for (let i = 0; i <= 14; i++) {
+      const d = addDays(t, i), wd = parseYmd(d).getDay();
+      const hrs = (wd === 0 || wd === 6 ? ["12:00", "13:00", "14:00"] : ["10:00", "11:00", "12:00", "16:00", "17:00"])
+        .filter(h => !(d === t && h <= now) && !M.inds.some(r => r.date === d && r.time === h && r.status !== "გაუქმებული"));
+      if (hrs.length) out[d] = hrs;
+    }
+    return out;
+  };
   const cnt = () => { const c = {}; Object.keys(GROUPS).forEach(k => (c[k] = (M.reserved[k] || 0) + M.groups.filter(g => g.group === k && g.active).length)); return c; };
   const who = () => {
     if (d.token) { const p = d.token.slice(2); const s = M.students.find(x => x.phone === p); if (!s) fail("auth"); return s; }
@@ -1636,7 +1681,7 @@ function mockApi(d) {
     waitlist: wl().map(w => ({ ...w })) });
   try {
     switch (d.action) {
-      case "counts": return { ok: true, counts: cnt() };
+      case "counts": return { ok: true, counts: cnt(), free: free() };
       case "group": {
         const s = who(), g = GROUPS[d.group]; if (!g) fail("invalid");
         const inG = M.groups.filter(x => x.group === g.id && x.active);
@@ -1677,8 +1722,9 @@ function mockApi(d) {
         if (!d.token) fail("login_required");
         if (!["სრულიად დამწყები", "0-1 წელი", "1+ წელი"].includes(d.experience)) fail("experience");
         const s = who(); if (!PRICES[d.people]) fail("invalid"); if (d.date < todayStr()) fail("past");
+        if (!(free()[d.date] || []).includes(d.time)) fail("slot_taken");
         M.inds.push({ id: "I" + ++M.seq, people: d.people, price: PRICES[d.people], date: d.date, time: d.time, name: s.name, phone: s.phone, experience: d.experience, status: "ახალი" });
-        return { ok: true, token: "s:" + s.phone };
+        return { ok: true, token: "s:" + s.phone, free: free() };
       }
       case "register": {
         const phone = key(d.phone), name = String(d.name || "").trim();

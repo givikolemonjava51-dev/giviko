@@ -28,6 +28,7 @@ SCHEDULE.forEach(day => day.hours.forEach(h => {
 }));
 
 const SESSION_DAYS = 180, ADMIN_HOURS = 12, MAX_TRIES = 5;
+const FREE_DAYS = 14; // ინდივიდუალურისთვის რამდენი დღის თავისუფალი დრო ჩანს საიტზე
 
 /* ---------- ცხრილები ---------- */
 const TABLES = {
@@ -38,6 +39,7 @@ const TABLES = {
   Reserved: ["group", "count"],
   Waitlist: ["id", "group", "name", "phone", "status", "created"],
   Changes: ["id", "kind", "ref", "name", "phone", "date", "time", "action", "newDate", "newTime", "status", "created"],
+  Free: ["date", "from", "to", "source"],
 };
 // ცხრილების აღწერა: როცა იცვლება, ძველ ცხრილს ემატება ახალი ფურცლები და სვეტები
 const SCHEMA = Object.keys(TABLES).map(k => k + ":" + TABLES[k].length).join(",");
@@ -118,6 +120,9 @@ const bool_ = v => v === true || v === "TRUE" || v === "true" || v === "1";
 const fail_ = code => { throw { code }; };
 const isDate_ = s => /^\d{4}-\d{2}-\d{2}$/.test(s || "");
 const isTime_ = s => /^\d{2}:\d{2}$/.test(s || "");
+const hm_ = v => { const m = String(v || "").trim().match(/^(\d{1,2})[:.](\d{2})/); return m && +m[1] < 25 ? pad_(+m[1]) + ":" + m[2] : ""; };
+const mins_ = s => +s.slice(0, 2) * 60 + +s.slice(3);
+const addDays_ = (s, n) => { const [y, m, d] = s.split("-").map(Number); return Utilities.formatDate(new Date(Date.UTC(y, m - 1, d + n, 12)), "UTC", "yyyy-MM-dd"); };
 const weekday_ = s => { const [y, m, d] = s.split("-").map(Number); return new Date(Date.UTC(y, m - 1, d)).getUTCDay(); };
 
 function secret_() {
@@ -205,6 +210,27 @@ function route_(d, db) {
   const wl = () => db.all("Waitlist").filter(w => w.status === "active"), chg = () => db.all("Changes");
   const reserved = () => { const r = {}; db.all("Reserved").forEach(x => (r[x.group] = Number(x.count) || 0)); return r; };
   const used = id => att().filter(a => a.member === id).length;
+  // ტრენერის თავისუფალი საათები (ფურცელი Free): { "2026-10-05": ["10:00", "11:00"] }.
+  // ფურცელი ცარიელია → null და საიტი ძველებურად ყველა საათს აჩვენებს.
+  const free = () => {
+    const rows = db.all("Free");
+    if (!rows.length) return null;
+    const t = today_(), last = addDays_(t, FREE_DAYS), now = Utilities.formatDate(new Date(), TZ, "HH:mm");
+    const taken = {};
+    inds().filter(r => r.status === "ახალი" || r.status === "დადასტურებული").forEach(r => (taken[r.date + " " + r.time] = true));
+    const out = {}, groupAt = (date, time) => Object.values(GROUPS).some(g => g.time === time && g.days.includes(weekday_(date)));
+    rows.forEach(r => {
+      const date = String(r.date).trim(), from = hm_(r.from), to = hm_(r.to);
+      if (!isDate_(date) || !from || !to || date < t || date > last) return;
+      for (let h = Math.ceil(mins_(from) / 60); (h + 1) * 60 <= mins_(to); h++) {
+        const time = pad_(h) + ":00";
+        if ((date === t && time <= now) || taken[date + " " + time] || groupAt(date, time)) continue;
+        (out[date] = out[date] || []).includes(time) || out[date].push(time);
+      }
+    });
+    Object.keys(out).forEach(k => out[k].sort());
+    return out;
+  };
   const active = g => bool_(g.active);
   const cnt = () => {
     const c = {}, res = reserved();
@@ -301,7 +327,7 @@ function route_(d, db) {
   const member = () => { const g = groups().find(x => x.id === d.member); if (!g) fail_("invalid"); return g; };
 
   switch (d.action) {
-    case "counts": return { ok: true, counts: cnt() };
+    case "counts": return { ok: true, counts: cnt(), free: free() };
 
     case "group": {
       const s = who(), g = GROUPS[d.group]; if (!g) fail_("invalid");
@@ -321,9 +347,11 @@ function route_(d, db) {
       if (!PRICES[people]) fail_("invalid");
       if (!/^\d{4}-\d{2}-\d{2}$/.test(d.date || "") || !/^\d{2}:00$/.test(d.time || "")) fail_("invalid");
       if (d.date < today_()) fail_("past");
+      const f = free();
+      if (f && !(f[d.date] || []).includes(d.time)) fail_("slot_taken");
       const r = db.add("Requests", { id: db.nextId("I"), people, price: PRICES[people], date: d.date, time: d.time, name: s.name, phone: s.phone, experience: d.experience, status: "ახალი", created: today_() });
       notify_("ახალი ინდივიდუალური მოთხოვნა", reqLines_(r));
-      return { ok: true, token: sToken(s.phone) };
+      return { ok: true, token: sToken(s.phone), free: free() };
     }
 
     case "waitlist": {
@@ -571,6 +599,102 @@ function installReminders() {
   ScriptApp.getProjectTriggers().filter(t => t.getHandlerFunction() === "reminders").forEach(t => ScriptApp.deleteTrigger(t));
   ScriptApp.newTrigger("reminders").timeBased().everyHours(1).create();
   console.log("შეხსენებები ჩაირთო: ყოველ საათში შემოწმდება, ხომ არ არის ვარჯიში 24 ან 2 საათში.");
+}
+
+/* ---------- კლუბის კალენდრიდან თავისუფალი საათები ----------
+   Book&Go-ს (ან Google Calendar-ის) iCal ლინკი ჩაწერეთ Apps Script-ში:
+   Project Settings → Script Properties → Add property:
+     CLUB_CAL_URL   iCal ლინკი (https://… ან webcal://…), აქ კი არა, მხოლოდ იქ
+     CLUB_CAL_MODE  busy (ნაგულისხმევი): კალენდარში ჯავშნებია, თავისუფალია სამუშაო საათები ჯავშნების გარეშე
+                    free: კალენდარში თავად თავისუფალი საათებია ჩაწერილი
+     WORK_HOURS     სამუშაო საათები busy რეჟიმისთვის, მაგ. 09:00-23:00 (ნაგულისხმევი 08:00-23:00)
+   შემდეგ ერთხელ გაუშვით installClubSync: ყოველ 15 წუთში განაახლებს ფურცელს Free (source = club).
+   ფურცელში ხელით ჩაწერილი სტრიქონები (source ცარიელი) უცვლელი რჩება. */
+function syncClubFree() {
+  const props = PropertiesService.getScriptProperties();
+  const url = String(props.getProperty("CLUB_CAL_URL") || "").trim().replace(/^webcal:/i, "https:");
+  if (!url) { console.log("CLUB_CAL_URL ცარიელია (Script Properties)."); return; }
+  const mode = String(props.getProperty("CLUB_CAL_MODE") || "busy").trim().toLowerCase() === "free" ? "free" : "busy";
+  const work = String(props.getProperty("WORK_HOURS") || "08:00-23:00").split("-").map(hm_);
+  if (mode === "busy" && (!work[0] || !work[1])) { console.log("WORK_HOURS არასწორია, მაგ. 09:00-23:00"); return; }
+  const res = UrlFetchApp.fetch(url, { muteHttpExceptions: true, followRedirects: true });
+  if (res.getResponseCode() !== 200) { console.error("კალენდარი ვერ ჩაიტვირთა: HTTP " + res.getResponseCode()); return; }
+  const t = today_(), last = addDays_(t, FREE_DAYS);
+  const days = {}; // date → [[from, to] წუთებში]
+  // busy რეჟიმში "თავისუფალად" მონიშნული მოვლენა (TRANSP:TRANSPARENT) დროს არ იკავებს
+  parseIcs_(res.getContentText()).filter(ev => mode === "free" || !ev.transparent).forEach(ev => {
+    for (let date = ev.start.date; date <= ev.end.date && date <= last; date = addDays_(date, 1)) {
+      if (date < t) continue;
+      const from = date === ev.start.date ? ev.start.min : 0, to = date === ev.end.date ? ev.end.min : 1440;
+      if (to > from) (days[date] = days[date] || []).push([from, to]);
+    }
+  });
+  const rows = [];
+  for (let date = t; date <= last; date = addDays_(date, 1)) {
+    const evs = (days[date] || []).sort((a, b) => a[0] - b[0]);
+    let wins = [];
+    if (mode === "free") wins = evs;
+    else {
+      let cur = mins_(work[0]);
+      const end = mins_(work[1]);
+      evs.forEach(([a, b]) => { if (a > cur) wins.push([cur, Math.min(a, end)]); cur = Math.max(cur, b); });
+      if (cur < end) wins.push([cur, end]);
+    }
+    wins.filter(w => w[1] > w[0]).forEach(w => rows.push([date, hhmm_(w[0]), hhmm_(w[1]), "club"]));
+  }
+  const ss = book_(), sh = ss.getSheetByName("Free"), db = Db_();
+  const manual = db.all("Free").filter(r => r.source !== "club").map(r => TABLES.Free.map(c => r[c]));
+  const all = manual.concat(rows);
+  if (sh.getLastRow() > 1) sh.getRange(2, 1, sh.getLastRow() - 1, TABLES.Free.length).clearContent();
+  if (all.length) sh.getRange(2, 1, all.length, TABLES.Free.length).setNumberFormat("@").setValues(all);
+  CacheService.getScriptCache().put("ver", String(Date.now()), 21600); // საიტი მაშინვე ხედავს ახალ საათებს
+  console.log("კლუბის კალენდრიდან ჩაიწერა " + rows.length + " თავისუფალი შუალედი (" + mode + ").");
+}
+
+function installClubSync() {
+  ScriptApp.getProjectTriggers().filter(t => t.getHandlerFunction() === "syncClubFree").forEach(t => ScriptApp.deleteTrigger(t));
+  ScriptApp.newTrigger("syncClubFree").timeBased().everyMinutes(15).create();
+  syncClubFree();
+  console.log("კალენდრის სინქრონიზაცია ჩაირთო: ყოველ 15 წუთში.");
+}
+
+const hhmm_ = m => pad_(Math.floor(m / 60)) + ":" + pad_(m % 60);
+
+// მარტივი iCal წამკითხველი: მოვლენის დასაწყისი და დასასრული თბილისის დროით { date, min }.
+// UTC დრო (…Z) გადაიყვანება თბილისზე; TZID-იანი და უზონო დრო ითვლება თბილისის დროდ.
+function parseIcs_(text) {
+  const lines = String(text).replace(/\r?\n[ \t]/g, "").split(/\r?\n/), out = [];
+  let ev = null;
+  const at = v => {
+    const m = v.match(/^(\d{4})(\d{2})(\d{2})(?:T(\d{2})(\d{2})\d{2}(Z)?)?$/);
+    if (!m) return null;
+    if (!m[4]) return { date: m[1] + "-" + m[2] + "-" + m[3], min: 0 };
+    if (m[6]) {
+      const d = new Date(Date.UTC(+m[1], m[2] - 1, +m[3], +m[4], +m[5]));
+      return { date: Utilities.formatDate(d, TZ, "yyyy-MM-dd"), min: mins_(Utilities.formatDate(d, TZ, "HH:mm")) };
+    }
+    return { date: m[1] + "-" + m[2] + "-" + m[3], min: +m[4] * 60 + +m[5] };
+  };
+  lines.forEach(l => {
+    if (l === "BEGIN:VEVENT") ev = {};
+    else if (l === "END:VEVENT") {
+      if (ev && ev.start && !ev.cancelled) {
+        // დასასრულის გარეშე: მთელი დღე ან 1 საათი; 00:00-ზე დამთავრება = წინა დღის ბოლო
+        let end = ev.end || (ev.allDay ? { date: addDays_(ev.start.date, 1), min: 0 } : { date: ev.start.date, min: ev.start.min + 60 });
+        if (end.min === 0 && end.date > ev.start.date) end = { date: addDays_(end.date, -1), min: 1440 };
+        out.push({ start: ev.start, end, transparent: !!ev.transparent });
+      }
+      ev = null;
+    } else if (ev) {
+      const i = l.indexOf(":"); if (i < 0) return;
+      const name = l.slice(0, i).split(";")[0].toUpperCase(), val = l.slice(i + 1).trim();
+      if (name === "DTSTART") { ev.start = at(val); ev.allDay = /VALUE=DATE(?!-)/i.test(l.slice(0, i)) || /^\d{8}$/.test(val); }
+      else if (name === "DTEND") ev.end = at(val);
+      else if (name === "STATUS" && val.toUpperCase() === "CANCELLED") ev.cancelled = true;
+      else if (name === "TRANSP" && val.toUpperCase() === "TRANSPARENT") ev.transparent = true;
+    }
+  });
+  return out;
 }
 
 /* ---------- პირველი გაშვება ----------
