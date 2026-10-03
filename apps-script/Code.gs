@@ -373,7 +373,9 @@ function notify_(kind, d) {
       const url = "https://api.callmebot.com/whatsapp.php?phone=" + encodeURIComponent(String(WHATSAPP_PHONE).replace(/\D/g, "")) +
         "&text=" + encodeURIComponent(subject + "\n\n" + text) + "&apikey=" + encodeURIComponent(CALLMEBOT_APIKEY);
       const r = UrlFetchApp.fetch(url, { muteHttpExceptions: true });
-      if (r.getResponseCode() !== 200) console.error("whatsapp notify failed: " + r.getContentText());
+      const body = r.getContentText().replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+      // CallMeBot returns 200 even for errors, so log its answer to see what happened
+      console.log("WhatsApp (CallMeBot): " + r.getResponseCode() + " " + body.slice(0, 300));
     } catch (e) { console.error("whatsapp notify failed: " + e); }
   }
 }
