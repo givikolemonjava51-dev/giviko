@@ -1,42 +1,27 @@
-# შეტყობინებები მეილზე და WhatsApp-ზე
+# სერვერი: Google Apps Script
 
-როცა მომხმარებელი აგზავნის ინდივიდუალურ მოთხოვნას ან ჯავშნის ადგილს ჯგუფში,
-სერვერი (Google Apps Script) გიგზავნით შეტყობინებას მეილზე და WhatsApp-ში.
+`Code.gs` არის საიტის სერვერი. ის ინახავს რეგისტრაციებს, ჯავშნებსა და მოთხოვნებს Google Sheets
+ცხრილში და ყოველ ახალ მოთხოვნაზე ან ჯგუფში ჯავშანზე გიგზავნით შეტყობინებას მეილზე და WhatsApp-ში.
 
-## 1. ფაილის დამატება
-Apps Script რედაქტორში, Code.gs-ის გვერდით, დაამატეთ ახალი ფაილი `Notify.gs`
-და ჩასვით ამ საქაღალდის `Notify.gs`-ის შიგთავსი.
+სანამ `index.html`-ში `API_URL` ცარიელია, საიტი დემო რეჟიმშია და მოთხოვნები არსად ინახება.
 
-## 2. გამოძახება Code.gs-ში
-Code.gs-ში, იმ ადგილას, სადაც ახალი მოთხოვნა ცხრილში ინახება (`individual` და `group`
-მოქმედებები), შენახვის შემდეგ დაამატეთ ერთი ხაზი:
+## ნაბიჯები
+1. **პროექტის შექმნა.** https://script.google.com → New project. დაარქვით „Giviko“.
+2. **კოდის ჩასმა.** წაშალეთ რედაქტორში არსებული კოდი და ჩასვით `Code.gs`-ის შიგთავსი.
+3. **WhatsApp გასაღები.** გახსენით https://www.callmebot.com/blog/free-api-whatsapp-messages/,
+   შეინახეთ იქ მითითებული ბოტის ნომერი კონტაქტებში და WhatsApp-ით გაუგზავნეთ
+   `I allow callmebot to send me messages`. პასუხად მოვა apikey.
+4. **პარამეტრები.** `Code.gs`-ის თავში შეავსეთ `ADMIN_PASSWORD`, `NOTIFY_EMAIL`,
+   `WHATSAPP_PHONE` (995-ით) და `CALLMEBOT_APIKEY`. შეავსეთ მხოლოდ Apps Script-ში, არა GitHub-ზე.
+5. **შემოწმება.** ზემოთ ფუნქციების სიიდან აირჩიეთ `setup` → Run → დაეთანხმეთ ნებართვებს.
+   შეიქმნება ცხრილი „Giviko — მონაცემები“ თქვენს Google Drive-ში და მოვა სატესტო შეტყობინება.
+6. **გამოქვეყნება.** Deploy → New deployment → ტიპი Web app.
+   Execute as: **Me**, Who has access: **Anyone** → Deploy. დააკოპირეთ ბმული (…/exec).
+7. **საიტთან დაკავშირება.** `index.html`-ში ჩასვით ეს ბმული: `const API_URL = "…/exec";`
 
-```js
-// action: "individual"
-notifyNewRequest("individual", { name, phone, date, time, people, price, experience });
+კოდის შეცვლის შემდეგ: Deploy → Manage deployments → Edit → Version: New version → Deploy.
+ბმული იგივე რჩება.
 
-// action: "group"
-notifyNewRequest("group", { name, phone, group, label });
-```
-
-ცვლადების სახელები თქვენს კოდს მოარგეთ.
-
-## 3. WhatsApp გასაღები (CallMeBot, უფასო)
-1. გახსენით https://www.callmebot.com/blog/free-api-whatsapp-messages/ და შეინახეთ იქ მითითებული ბოტის ნომერი კონტაქტებში.
-2. WhatsApp-ით გაუგზავნეთ: `I allow callmebot to send me messages`
-3. პასუხად მოგივათ apikey.
-
-## 4. პარამეტრები
-Apps Script → Project Settings → Script Properties:
-
-| Property | მნიშვნელობა |
-|---|---|
-| `NOTIFY_EMAIL` | თქვენი მეილი |
-| `WHATSAPP_PHONE` | ნომერი `995` კოდით, მაგ. `9955XXXXXXXX` |
-| `CALLMEBOT_APIKEY` | CallMeBot-ის გასაღები |
-
-## 5. შემოწმება და გამოქვეყნება
-1. რედაქტორში აირჩიეთ ფუნქცია `testNotify` და დააჭირეთ Run, დაეთანხმეთ ნებართვებს.
-   სატესტო შეტყობინება უნდა მოვიდეს მეილზე და WhatsApp-ში.
-2. Deploy → Manage deployments → Edit → Version: New version → Deploy.
-   Web App ბმული იგივე რჩება, index.html-ში არაფრის შეცვლა არ არის საჭირო.
+## სხვა
+- ცხრილში „Reserved“ ფურცელზე შეგიძლიათ მიუთითოთ, ჯგუფში რამდენი ადგილია უკვე დაკავებული საიტის გარეშე.
+- PIN-კოდები ცხრილში დაშიფრული (hash) სახით ინახება.
