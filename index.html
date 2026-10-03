@@ -294,19 +294,6 @@ footer { border-top: 1px solid var(--line); margin-top: 48px; }
 footer .wrap { padding-block: 24px; display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; color: var(--muted); font-size: 14px; }
 footer a { color: var(--muted); }
 
-/* Live groups */
-.live { padding: 18px 20px; }
-.live-h { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 4px; }
-.live-h .label { display: inline-flex; align-items: center; gap: 8px; color: var(--ink); }
-.live-h a { font-size: 14px; }
-.pulse { width: 9px; height: 9px; border-radius: 50%; background: var(--ok); box-shadow: 0 0 0 0 color-mix(in srgb, var(--ok) 60%, transparent); animation: pulse 2s infinite; }
-@keyframes pulse { 70% { box-shadow: 0 0 0 8px transparent; } 100% { box-shadow: 0 0 0 0 transparent; } }
-@media (prefers-reduced-motion: reduce) { .pulse { animation: none; } }
-.live-list { display: grid; grid-template-columns: 1fr 1fr; column-gap: 28px; }
-.live .slot:nth-last-child(-n+2) { border-bottom: 0; }
-.slot .time .when { display: block; font-family: var(--body); font-weight: 600; color: var(--muted); font-size: 12px; white-space: nowrap; }
-.slot .time .when b { color: var(--accent); font-weight: 700; }
-
 /* Coach */
 .coach { display: grid; grid-template-columns: 260px 1fr; gap: 28px; align-items: center; }
 .coach .ph { aspect-ratio: 4 / 5; border-radius: 14px; overflow: hidden; background: var(--accent-soft); display: grid; place-items: center; }
@@ -356,13 +343,9 @@ footer a { color: var(--muted); }
 .wa-link { font-size: 12px; font-weight: 700; color: #25D366; text-decoration: none; border: 1px solid color-mix(in srgb, #25D366 40%, transparent); border-radius: 8px; padding: 6px 10px; white-space: nowrap; }
 
 @media (max-width: 860px) {
-  .hero, .prices, .ind, .cab-grid, .loc, .live-list { grid-template-columns: 1fr; }
-  .live .slot:nth-last-child(2) { border-bottom: 1px solid var(--line); }
+  .hero, .prices, .ind, .cab-grid, .loc { grid-template-columns: 1fr; }
   .coach { grid-template-columns: 140px 1fr; gap: 18px; align-items: start; }
   .fab .call { display: inline-flex; }
-  .live .slot { gap: 10px; }
-  .live .slot .btn { padding: 7px 10px; font-size: 13px; }
-  .live .pair { display: none; }
   .fab a { padding: 0; width: 52px; justify-content: center; }
   .fab a span { display: none; }
   footer { padding-bottom: 80px; }
@@ -425,14 +408,6 @@ footer a { color: var(--muted); }
         <a class="btn btn-ghost" href="#individual">ინდივიდუალური</a>
       </div>
     </div>
-  </div>
-
-  <div class="card live" id="live">
-    <div class="live-h">
-      <span class="label"><span class="pulse" aria-hidden="true"></span>ახლო ჯგუფები · ადგილები ახლა</span>
-      <a href="#groups">მთელი განრიგი</a>
-    </div>
-    <div class="live-list" id="liveList"></div>
   </div>
 
   <section id="about">
@@ -790,16 +765,6 @@ SCHEDULE.forEach(day => day.hours.forEach(h => {
   GROUPS[gid(day, h)] = { id: gid(day, h), day, days: day.days, time: h, label: `${day.label} ${h}-${endOf(h)}` };
 }));
 const nowHM = () => { const n = new Date(); return `${pad(n.getHours())}:${pad(n.getMinutes())}`; };
-// ჯგუფის შემდეგი ვარჯიშის თარიღი (დღეს, თუ ჯერ არ დაწყებულა)
-function nextDate(g, from = todayStr()) {
-  let d = from;
-  for (let i = 0; i < 8; i++, d = addDays(d, 1)) {
-    if (!g.days.includes(parseYmd(d).getDay())) continue;
-    if (d === todayStr() && g.time <= nowHM()) continue;
-    return d;
-  }
-  return null;
-}
 const dayWord = d => d === todayStr() ? "დღეს" : d === addDays(todayStr(), 1) ? "ხვალ" : WDS[parseYmd(d).getDay()] + ", " + parseYmd(d).getDate() + " " + MON[parseYmd(d).getMonth()];
 document.querySelectorAll("[data-wa]").forEach(a => (a.href = waLink(COACH_PHONE, "გამარჯობა! მაინტერესებს პადელის ვარჯიში.")));
 
@@ -975,24 +940,17 @@ function renderSchedule() {
   const panel = sel ? `<div class="daypanel" id="dayPanel" style="--o:${SCHEDULE.indexOf(sel) * 2 + 1}"><div class="label" style="padding-top:14px">${sel.title} · აირჩიე დრო</div>${sel.hours.map(h => slotHtml(sel, h, mine, pend, wait)).join("")}</div>` : "";
   daysEl.innerHTML = `<div class="daypick">${SCHEDULE.map(card).join("")}${panel}</div>` +
     (sel ? "" : `<p class="pick-hint">დააჭირე დღეებს და გამოჩნდება ჯგუფების დრო.</p>`);
-  renderLive(mine, pend, wait);
 }
-// მთავარ გვერდზე: უახლოესი ჯგუფური ვარჯიშები და რამდენი ადგილია დაკავებული
-function renderLive(mine, pend, wait) {
-  const next = Object.values(GROUPS).map(g => ({ g, d: nextDate(g) })).filter(x => x.d)
-    .sort((a, b) => (a.d + a.g.time < b.d + b.g.time ? -1 : 1)).slice(0, 6);
-  $("liveList").innerHTML = next.map(({ g, d }) => slotHtml(g.day, g.time, mine, pend, wait, `<span class="when"><b>${dayWord(d)}</b><span class="pair"> · ${g.day.short}</span></span>`)).join("");
-}
-function slotHtml(day, h, mine, pend = new Set(), wait = new Set(), when = "") {
+function slotHtml(day, h, mine, pend = new Set(), wait = new Set()) {
   const id = gid(day, h);
-  const time = `<div class="time">${h}${when || `<small>${endOf(h)}-მდე</small>`}</div>`;
+  const time = `<div class="time">${h}<small>${endOf(h)}-მდე</small></div>`;
   if (!counts) {
     return `<div class="slot loading">${time}<div class="seats"><div class="dots">${"<i></i>".repeat(CAPACITY)}</div><span class="txt">იტვირთება…</span></div><button class="btn btn-primary" disabled>ჩაწერა</button></div>`;
   }
   const c = Math.min(counts[id] || 0, CAPACITY), free = CAPACITY - c, full = free <= 0, isMine = mine.has(id);
   const waiting = !isMine && full && wait.has(id);
   const txt = isMine ? (pend.has(id) ? "შენი ადგილი · გადახდის მოლოდინში" : "შენი ჯგუფი") : waiting ? "სავსეა · მოლოდინის სიაში ხარ"
-    : full ? (when ? "სავსეა" : `${CAPACITY} / ${CAPACITY} · ჯგუფი სავსეა`) : `${c} / ${CAPACITY}${when ? "" : " ადგილი"} დაკავებულია`;
+    : full ? `${CAPACITY} / ${CAPACITY} · ჯგუფი სავსეა` : `${c} / ${CAPACITY} ადგილი დაკავებულია`;
   return `<div class="slot${full ? " is-full" : ""}${isMine ? " mine" : ""}">${time}
     <div class="seats">
       <div class="dots" aria-hidden="true">${Array.from({ length: CAPACITY }, (_, i) => `<i class="${i < c ? "on" : ""}"></i>`).join("")}</div>
@@ -1080,10 +1038,6 @@ daysEl.addEventListener("click", e => {
     if (selDay && window.innerWidth < 860) $("dayPanel").scrollIntoView({ behavior: "smooth", block: "nearest" });
     return;
   }
-  const b = e.target.closest("button[data-group]");
-  if (b && !b.disabled) openGroup(b);
-});
-$("liveList").addEventListener("click", e => {
   const b = e.target.closest("button[data-group]");
   if (b && !b.disabled) openGroup(b);
 });
