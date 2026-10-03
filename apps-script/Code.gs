@@ -1,6 +1,7 @@
 /* ====== Giviko — სერვერი (Google Apps Script) ======
    მონაცემები ინახება Google Sheets ცხრილში, რომელიც პირველ გაშვებაზე თავად შეიქმნება.
-   ახალ მოთხოვნაზე და ჯგუფში ჯავშანზე შეტყობინება მოდის მეილზე და WhatsApp-ში.
+   ახალ მოთხოვნაზე, ჯავშანზე, გაუქმებაზე და გადატანაზე შეტყობინება მოდის მეილზე და WhatsApp-ში.
+   ვარჯიშამდე 24 და 2 საათით ადრე მოდის შეხსენება (ერთხელ გაუშვით installReminders).
 
    ⚠ შეავსეთ ქვემოთ მხოლოდ Apps Script-ში ჩასმულ ასლში, GitHub-ზე ნუ ატვირთავთ. */
 const ADMIN_PASSWORD = "";     // ტრენერის პანელის პაროლი (მინ. 6 სიმბოლო)
@@ -31,11 +32,15 @@ const SESSION_DAYS = 180, ADMIN_HOURS = 12, MAX_TRIES = 5;
 /* ---------- ცხრილები ---------- */
 const TABLES = {
   Students: ["phone", "name", "pinHash", "created"],
-  Groups: ["id", "group", "name", "phone", "active", "pending", "purchased", "created"],
-  Requests: ["id", "people", "price", "date", "time", "name", "phone", "experience", "status", "created"],
+  Groups: ["id", "group", "name", "phone", "active", "pending", "purchased", "created", "renew"],
+  Requests: ["id", "people", "price", "date", "time", "name", "phone", "experience", "status", "created", "note"],
   Attendance: ["date", "kind", "label", "member", "phone", "status"],
   Reserved: ["group", "count"],
+  Waitlist: ["id", "group", "name", "phone", "status", "created"],
+  Changes: ["id", "kind", "ref", "name", "phone", "date", "time", "action", "newDate", "newTime", "status", "created"],
 };
+// ცხრილების აღწერა: როცა იცვლება, ძველ ცხრილს ემატება ახალი ფურცლები და სვეტები
+const SCHEMA = Object.keys(TABLES).map(k => k + ":" + TABLES[k].length).join(",");
 
 function book_() {
   const props = PropertiesService.getScriptProperties();
@@ -46,8 +51,17 @@ function book_() {
     blank = ss.getSheets()[0];
     props.setProperty("SHEET_ID", ss.getId());
   }
+  if (!blank && props.getProperty("SCHEMA") === SCHEMA) return ss;
   Object.keys(TABLES).forEach(name => {
-    if (ss.getSheetByName(name)) return;
+    const cols = TABLES[name], old = ss.getSheetByName(name);
+    if (old) {
+      const have = old.getLastColumn();
+      if (have < cols.length) {
+        old.getRange(1, have + 1, old.getMaxRows(), cols.length - have).setNumberFormat("@");
+        old.getRange(1, have + 1, 1, cols.length - have).setValues([cols.slice(have)]).setFontWeight("bold");
+      }
+      return;
+    }
     const sh = ss.insertSheet(name);
     sh.getRange("A:Z").setNumberFormat("@"); // ნომრები და თარიღები ტექსტად
     sh.getRange(1, 1, 1, TABLES[name].length).setValues([TABLES[name]]).setFontWeight("bold");
@@ -55,6 +69,7 @@ function book_() {
     if (name === "Reserved") sh.getRange(2, 1, Object.keys(GROUPS).length, 2).setValues(Object.keys(GROUPS).map(g => [g, "0"]));
   });
   if (blank) ss.deleteSheet(blank);
+  props.setProperty("SCHEMA", SCHEMA);
   return ss;
 }
 
@@ -101,6 +116,8 @@ const today_ = () => Utilities.formatDate(new Date(), TZ, "yyyy-MM-dd");
 const key_ = p => { const x = String(p || "").replace(/\D/g, ""); return x.length > 9 ? x.slice(-9) : x; };
 const bool_ = v => v === true || v === "TRUE" || v === "true" || v === "1";
 const fail_ = code => { throw { code }; };
+const isDate_ = s => /^\d{4}-\d{2}-\d{2}$/.test(s || "");
+const isTime_ = s => /^\d{2}:\d{2}$/.test(s || "");
 const weekday_ = s => { const [y, m, d] = s.split("-").map(Number); return new Date(Date.UTC(y, m - 1, d)).getUTCDay(); };
 
 function secret_() {
@@ -143,26 +160,49 @@ function json_(o) {
   return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON);
 }
 
-const WRITES = ["group", "individual", "register", "admin_mark", "admin_update_request", "admin_renew", "admin_confirm_payment", "admin_cancel_member"];
+const WRITES = ["group", "individual", "register", "waitlist", "waitlist_leave", "renew", "cancel", "reschedule",
+  "admin_mark", "admin_update_request", "admin_renew", "admin_confirm_payment", "admin_cancel_member", "admin_change", "admin_waitlist_remove"];
+
+// ხშირი წაკითხვები (განრიგი, კაბინეტი) ინახება ქეშში, რომ ცხრილი ყოველ ჯერზე არ გაიხსნას.
+// ნებისმიერი ჩაწერა ქეშს აახლებს; ცხრილში ხელით შეცვლილი ციფრი საიტზე მაქსიმუმ CACHE_SEC წამში ჩანს.
+const CACHE_SEC = 60;
+const CACHED = ["counts", "me"];
 
 function handle_(d) {
+  d = d || {};
   const lock = WRITES.includes(d.action) ? LockService.getScriptLock() : null;
+  const cache = CacheService.getScriptCache();
+  let ck = null;
+  if (CACHED.includes(d.action)) {
+    const sub = d.action === "me" ? readToken_(d.token, "s") : "all";
+    if (sub) {
+      ck = "r:" + (cache.get("ver") || "0") + ":" + d.action + ":" + sub;
+      const hit = cache.get(ck);
+      if (hit) return JSON.parse(hit);
+    }
+  }
   try {
     if (lock) lock.waitLock(20000);
-    const res = route_(d || {}, Db_());
+    const res = route_(d, Db_());
+    if (ck && res && res.ok) { try { cache.put(ck, JSON.stringify(res), CACHE_SEC); } catch (e) {} }
     return res;
   } catch (e) {
     if (e && e.code) return { ok: false, error: e.code };
     console.error(e && e.stack || e);
     return { ok: false, error: "server" };
   } finally {
-    if (lock) { SpreadsheetApp.flush(); lock.releaseLock(); }
+    if (lock) {
+      SpreadsheetApp.flush();
+      cache.put("ver", String(Date.now()), 21600); // ძველი ქეში აღარ გამოიყენება
+      lock.releaseLock();
+    }
   }
 }
 
 function route_(d, db) {
   const students = () => db.all("Students"), groups = () => db.all("Groups");
   const inds = () => db.all("Requests"), att = () => db.all("Attendance");
+  const wl = () => db.all("Waitlist").filter(w => w.status === "active"), chg = () => db.all("Changes");
   const reserved = () => { const r = {}; db.all("Reserved").forEach(x => (r[x.group] = Number(x.count) || 0)); return r; };
   const used = id => att().filter(a => a.member === id).length;
   const active = g => bool_(g.active);
@@ -200,9 +240,11 @@ function route_(d, db) {
       name: s.name, phone,
       memberships: groups().filter(g => g.phone === phone && active(g) && GROUPS[g.group]).map(g => {
         const G = GROUPS[g.group], u = used(g.id), p = Number(g.purchased) || 0;
-        return { id: g.id, group: g.group, label: G.label, days: G.days, time: G.time, since: g.created, pending: bool_(g.pending), purchased: p, used: u, remaining: Math.max(0, p - u) };
+        return { id: g.id, group: g.group, label: G.label, days: G.days, time: G.time, since: g.created, pending: bool_(g.pending), renew: bool_(g.renew), purchased: p, used: u, remaining: Math.max(0, p - u) };
       }),
       individual: inds().filter(r => r.phone === phone && r.status !== "გაუქმებული").map(pubReq_),
+      waitlist: wl().filter(w => w.phone === phone && GROUPS[w.group]).map(w => ({ id: w.id, group: w.group, label: GROUPS[w.group].label })),
+      changes: chg().filter(c => c.phone === phone).map(pubChg_),
       history: mine.slice().sort((a, b) => (a.date < b.date ? 1 : -1)).map(a => ({ date: a.date, kind: a.kind, label: a.label, status: a.status })),
       stats: {
         attended: mine.filter(a => a.status === "მოვიდა").length,
@@ -212,13 +254,28 @@ function route_(d, db) {
     };
   };
   const day = () => {
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(d.date || "")) fail_("invalid");
+    if (!isDate_(d.date)) fail_("invalid");
     const wd = weekday_(d.date), mark = id => (att().find(a => a.date === d.date && a.member === id) || {}).status || "";
+    const left = m => Math.max(0, (Number(m.purchased) || 0) - used(m.id));
+    // მოსწავლემ გააფრთხილა, რომ ვერ მოვა, ან სხვა დღეზე გადაიტანა
+    const away = id => chg().find(c => c.ref === id && c.date === d.date && (c.action === "cancel" || c.status !== "უარყოფილი"));
     const sessions = [];
     Object.values(GROUPS).forEach(g => {
       if (!g.days.includes(wd)) return;
       sessions.push({ kind: "group", ref: g.id, time: g.time, label: g.label,
-        members: groups().filter(m => m.group === g.id && active(m) && !bool_(m.pending)).map(m => ({ id: m.id, name: m.name, phone: m.phone, remaining: Math.max(0, (Number(m.purchased) || 0) - used(m.id)), mark: mark(m.id) })) });
+        members: groups().filter(m => m.group === g.id && active(m) && !bool_(m.pending)).map(m => {
+          const c = away(m.id);
+          return { id: m.id, name: m.name, phone: m.phone, remaining: left(m), mark: mark(m.id), away: !!c && (c.action === "cancel" || c.status === "დადასტურებული"),
+            note: !c ? "" : c.action === "cancel" ? "გააფრთხილა: ვერ მოვა" : (c.status === "ახალი" ? "ითხოვს გადატანას: " : "გადატანილია: ") + c.newDate + " " + c.newTime };
+        }) });
+    });
+    // ანაზღაურებითი ვარჯიშები: დადასტურებული გადატანა ამ დღეზე
+    chg().filter(c => c.action === "reschedule" && c.status === "დადასტურებული" && c.newDate === d.date).forEach(c => {
+      const m = groups().find(x => x.id === c.ref); if (!m) return;
+      const row = { id: m.id, name: m.name, phone: m.phone, remaining: left(m), mark: mark(m.id), note: "ანაზღაურება (" + c.date + "-ის ნაცვლად)" };
+      const s = sessions.find(x => x.kind === "group" && x.time === c.newTime);
+      if (s) s.members.push(row);
+      else sessions.push({ kind: "makeup", ref: c.id, time: c.newTime, label: "ანაზღაურებითი ვარჯიში", members: [row] });
     });
     inds().filter(r => r.date === d.date && r.status !== "გაუქმებული").forEach(r => sessions.push({
       kind: "individual", ref: r.id, time: r.time, label: `ინდივიდუალური · ${r.people} ადამიანი · ${r.price} ₾`,
@@ -228,11 +285,19 @@ function route_(d, db) {
   };
   const reqs = () => ({ ok: true, requests: inds()
     .filter(r => r.status === "ახალი" || (r.status === "დადასტურებული" && r.date >= today_()))
-    .sort((a, b) => (a.date + a.time < b.date + b.time ? -1 : 1)).map(pubReq_) });
+    .sort((a, b) => (a.date + a.time < b.date + b.time ? -1 : 1)).map(pubReq_),
+    changes: chg().filter(c => c.action === "reschedule" && c.status === "ახალი").map(c => {
+      const g = groups().find(x => x.id === c.ref);
+      return Object.assign(pubChg_(c), { label: g && GROUPS[g.group] ? GROUPS[g.group].label : "" });
+    }) });
   const mems = () => ({ ok: true, reserved: reserved(), members: groups().filter(g => active(g) && GROUPS[g.group]).map(g => {
     const u = used(g.id), p = Number(g.purchased) || 0;
-    return { id: g.id, group: g.group, label: GROUPS[g.group].label, name: g.name, phone: g.phone, pending: bool_(g.pending), purchased: p, used: u, remaining: Math.max(0, p - u) };
-  }) });
+    return { id: g.id, group: g.group, label: GROUPS[g.group].label, name: g.name, phone: g.phone, pending: bool_(g.pending), renew: bool_(g.renew), purchased: p, used: u, remaining: Math.max(0, p - u) };
+  }), waitlist: wl().filter(w => GROUPS[w.group]).map(w => ({ id: w.id, group: w.group, name: w.name, phone: w.phone, created: w.created })) });
+  const seatFreed = gid => {
+    const next = wl().filter(w => w.group === gid);
+    if (next.length) notify_("ადგილი გათავისუფლდა", ["ჯგუფი: " + GROUPS[gid].label, "მოლოდინის სიაში " + next.length + " ადამიანია. პირველი:", next[0].name + " · " + next[0].phone]);
+  };
   const member = () => { const g = groups().find(x => x.id === d.member); if (!g) fail_("invalid"); return g; };
 
   switch (d.action) {
@@ -244,7 +309,8 @@ function route_(d, db) {
       if (inG.some(x => x.phone === s.phone)) fail_("already");
       if (inG.length + (reserved()[g.id] || 0) >= CAPACITY) fail_("full");
       db.add("Groups", { id: db.nextId("G"), group: g.id, name: s.name, phone: s.phone, active: "TRUE", pending: "TRUE", purchased: PASS, created: today_() });
-      notify_("group", { name: s.name, phone: s.phone, group: g.label });
+      wl().filter(w => w.group === g.id && w.phone === s.phone).forEach(w => { w.status = "joined"; db.save("Waitlist", w); });
+      notify_("ახალი ჯავშანი ჯგუფში", ["სახელი: " + s.name, "ტელეფონი: " + s.phone, "ჯგუფი: " + g.label]);
       return { ok: true, counts: cnt(), token: sToken(s.phone) };
     }
 
@@ -256,8 +322,66 @@ function route_(d, db) {
       if (!/^\d{4}-\d{2}-\d{2}$/.test(d.date || "") || !/^\d{2}:00$/.test(d.time || "")) fail_("invalid");
       if (d.date < today_()) fail_("past");
       const r = db.add("Requests", { id: db.nextId("I"), people, price: PRICES[people], date: d.date, time: d.time, name: s.name, phone: s.phone, experience: d.experience, status: "ახალი", created: today_() });
-      notify_("individual", r);
+      notify_("ახალი ინდივიდუალური მოთხოვნა", reqLines_(r));
       return { ok: true, token: sToken(s.phone) };
+    }
+
+    case "waitlist": {
+      const s = who(), g = GROUPS[d.group]; if (!g) fail_("invalid");
+      const inG = groups().filter(x => x.group === g.id && active(x));
+      if (inG.some(x => x.phone === s.phone)) fail_("already");
+      if (inG.length + (reserved()[g.id] || 0) < CAPACITY) fail_("not_full");
+      if (wl().some(w => w.group === g.id && w.phone === s.phone)) fail_("already_wait");
+      db.add("Waitlist", { id: db.nextId("W"), group: g.id, name: s.name, phone: s.phone, status: "active", created: today_() });
+      const pos = wl().filter(w => w.group === g.id).length;
+      notify_("მოლოდინის სიაში ჩაეწერა", ["სახელი: " + s.name, "ტელეფონი: " + s.phone, "ჯგუფი: " + g.label, "რიგში: " + pos]);
+      return { ok: true, position: pos, token: sToken(s.phone) };
+    }
+
+    case "waitlist_leave": {
+      if (!d.token) fail_("auth");
+      const s = who(), w = wl().find(x => x.id === d.id && x.phone === s.phone); if (!w) fail_("invalid");
+      w.status = "left"; db.save("Waitlist", w);
+      return { ok: true, profile: prof(s.phone) };
+    }
+
+    case "renew": {
+      if (!d.token) fail_("auth");
+      const s = who(), g = groups().find(x => x.id === d.member && x.phone === s.phone && active(x) && GROUPS[x.group]);
+      if (!g) fail_("invalid");
+      if (!bool_(g.renew)) {
+        g.renew = "TRUE"; db.save("Groups", g);
+        const u = used(g.id), p = Number(g.purchased) || 0;
+        notify_("აბონემენტის გაგრძელება", ["სახელი: " + s.name, "ტელეფონი: " + s.phone, "ჯგუფი: " + GROUPS[g.group].label, "დარჩა: " + Math.max(0, p - u) + " / " + p, "ჩარიცხვის შემდეგ დააჭირე „+8 განახლება“."]);
+      }
+      return { ok: true, profile: prof(s.phone) };
+    }
+
+    case "cancel":
+    case "reschedule": {
+      if (!d.token) fail_("auth");
+      const s = who(), moving = d.action === "reschedule";
+      if (moving && (!isDate_(d.newDate) || !isTime_(d.newTime) || d.newDate < today_())) fail_("invalid");
+      const who2 = ["სახელი: " + s.name, "ტელეფონი: " + s.phone];
+      if (d.kind === "individual") {
+        const r = inds().find(x => x.id === d.ref && x.phone === s.phone);
+        if (!r || !["ახალი", "დადასტურებული"].includes(r.status) || r.date < today_()) fail_("invalid");
+        const was = r.date + " " + r.time;
+        if (moving) { r.note = "გადატანა " + was + "-დან"; r.date = d.newDate; r.time = d.newTime; r.status = "ახალი"; }
+        else r.status = "გაუქმებული";
+        db.save("Requests", r);
+        notify_(moving ? "ინდივიდუალური ვარჯიშის გადატანის მოთხოვნა" : "ინდივიდუალური ვარჯიში გაუქმდა",
+          who2.concat(["იყო: " + was], moving ? ["ახალი დრო: " + r.date + " " + r.time, "დაადასტურე ტრენერის პანელში."] : []));
+      } else if (d.kind === "group") {
+        const g = groups().find(x => x.id === d.ref && x.phone === s.phone && active(x)), G = g && GROUPS[g.group];
+        if (!G || !isDate_(d.date) || d.date < today_() || !G.days.includes(weekday_(d.date))) fail_("invalid");
+        if (chg().some(c => c.ref === g.id && c.date === d.date && c.status !== "უარყოფილი")) fail_("already_changed");
+        db.add("Changes", { id: db.nextId("C"), kind: "group", ref: g.id, name: s.name, phone: s.phone, date: d.date, time: G.time,
+          action: moving ? "reschedule" : "cancel", newDate: moving ? d.newDate : "", newTime: moving ? d.newTime : "", status: moving ? "ახალი" : "მიღებული", created: today_() });
+        notify_(moving ? "ჯგუფური ვარჯიშის გადატანის მოთხოვნა" : "მოსწავლე ვერ მოვა ვარჯიშზე",
+          who2.concat(["ჯგუფი: " + G.label, "თარიღი: " + d.date], moving ? ["სურს: " + d.newDate + " " + d.newTime, "დაადასტურე ტრენერის პანელში."] : []));
+      } else fail_("invalid");
+      return { ok: true, profile: prof(s.phone) };
     }
 
     case "register": {
@@ -302,7 +426,7 @@ function route_(d, db) {
 
     case "admin_mark": {
       admin();
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(d.date || "")) fail_("invalid");
+      if (!isDate_(d.date)) fail_("invalid");
       (d.marks || []).forEach(m => {
         const ex = att().find(a => a.date === d.date && a.member === m.member);
         const g = groups().find(x => x.id === m.member), r = inds().find(x => x.id === m.member), src = g || r;
@@ -345,39 +469,108 @@ function route_(d, db) {
       }).sort((a, b) => (a.created < b.created ? 1 : -1)) };
     }
 
-    case "admin_renew": { admin(); const g = member(); g.purchased = (Number(g.purchased) || 0) + (Number(d.add) || PASS); db.save("Groups", g); return mems(); }
+    case "admin_renew": { admin(); const g = member(); g.purchased = (Number(g.purchased) || 0) + (Number(d.add) || PASS); g.renew = "FALSE"; db.save("Groups", g); return mems(); }
     case "admin_confirm_payment": { admin(); const g = member(); g.pending = "FALSE"; db.save("Groups", g); return mems(); }
-    case "admin_cancel_member": { admin(); const g = member(); g.active = "FALSE"; db.save("Groups", g); return mems(); }
+    case "admin_cancel_member": {
+      admin(); const g = member(), was = active(g); g.active = "FALSE"; db.save("Groups", g);
+      if (was && GROUPS[g.group]) seatFreed(g.group);
+      return mems();
+    }
+
+    case "admin_change": {
+      admin();
+      const c = chg().find(x => x.id === d.id);
+      if (!c || !["დადასტურებული", "უარყოფილი"].includes(d.status)) fail_("invalid");
+      c.status = d.status; db.save("Changes", c);
+      return reqs();
+    }
+
+    case "admin_waitlist_remove": {
+      admin();
+      const w = wl().find(x => x.id === d.id); if (!w) fail_("invalid");
+      w.status = "removed"; db.save("Waitlist", w);
+      return mems();
+    }
   }
   fail_("bad_request");
 }
 
 function pubReq_(r) {
-  return { id: r.id, people: Number(r.people), price: Number(r.price), date: r.date, time: r.time, name: r.name, phone: r.phone, experience: r.experience, status: r.status };
+  return { id: r.id, people: Number(r.people), price: Number(r.price), date: r.date, time: r.time, name: r.name, phone: r.phone, experience: r.experience, status: r.status, note: r.note || "" };
+}
+function pubChg_(c) {
+  return { id: c.id, kind: c.kind, ref: c.ref, name: c.name, phone: c.phone, date: c.date, time: c.time, action: c.action, newDate: c.newDate, newTime: c.newTime, status: c.status };
+}
+function reqLines_(r) {
+  return ["სახელი: " + r.name, "ტელეფონი: " + r.phone, "თარიღი: " + r.date + " " + r.time, "ადამიანი: " + r.people + " · " + r.price + " ₾", "გამოცდილება: " + r.experience];
 }
 
 /* ---------- შეტყობინებები: მეილი + WhatsApp ---------- */
-function notify_(kind, d) {
-  const subject = kind === "group" ? "ახალი ჯავშანი ჯგუფში" : "ახალი ინდივიდუალური მოთხოვნა";
-  const lines = ["სახელი: " + d.name, "ტელეფონი: " + d.phone];
-  if (kind === "group") lines.push("ჯგუფი: " + d.group);
-  else lines.push("თარიღი: " + d.date + " " + d.time, "ადამიანი: " + d.people + " · " + d.price + " ₾", "გამოცდილება: " + d.experience);
+// html: მეილის ვერსია ბმულებით (არასავალდებულო). WhatsApp-ში მიდის მოკლე ტექსტი.
+function notify_(subject, lines, html) {
   const text = lines.join("\n");
-
   if (NOTIFY_EMAIL) {
-    try { MailApp.sendEmail(NOTIFY_EMAIL, subject, text); }
+    try { MailApp.sendEmail(NOTIFY_EMAIL, subject, text, html ? { htmlBody: html } : {}); }
     catch (e) { console.error("email notify failed: " + e); }
   }
   if (WHATSAPP_PHONE && CALLMEBOT_APIKEY) {
     try {
-      const url = "https://api.callmebot.com/whatsapp.php?phone=" + encodeURIComponent(String(WHATSAPP_PHONE).replace(/\D/g, "")) +
-        "&text=" + encodeURIComponent(subject + "\n\n" + text) + "&apikey=" + encodeURIComponent(CALLMEBOT_APIKEY);
-      const r = UrlFetchApp.fetch(url, { muteHttpExceptions: true });
+      const base = "https://api.callmebot.com/whatsapp.php?phone=" + encodeURIComponent(String(WHATSAPP_PHONE).replace(/\D/g, "")) +
+        "&apikey=" + encodeURIComponent(CALLMEBOT_APIKEY) + "&text=";
+      // Apps Script-ში ბმული 2000 სიმბოლოზე გრძელი ვერ იქნება, ამიტომ გრძელ ტექსტს ვჭრით
+      let msg = subject + "\n\n" + text;
+      while (base.length + encodeURIComponent(msg).length > 2000) msg = msg.slice(0, Math.floor(msg.length * 0.9));
+      const r = UrlFetchApp.fetch(base + encodeURIComponent(msg), { muteHttpExceptions: true });
       const body = r.getContentText().replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
       // CallMeBot returns 200 even for errors, so log its answer to see what happened
       console.log("WhatsApp (CallMeBot): " + r.getResponseCode() + " " + body.slice(0, 300));
     } catch (e) { console.error("whatsapp notify failed: " + e); }
   }
+}
+
+/* ---------- შეხსენებები: ვარჯიშამდე 24 და 2 საათით ადრე ----------
+   CallMeBot მხოლოდ თქვენს ნომერზე წერს, ამიტომ შეხსენება მოდის თქვენთან: ვინ მოდის და
+   მეილში თითოეულ მოსწავლესთან WhatsApp ბმული მზა ტექსტით (ერთი დაჭერით გაგზავნა).
+   იგივე ღილაკები ტრენერის პანელშიც არის. ჩასართავად ერთხელ გაუშვით installReminders. */
+const PLACE = "Padelbade Krtsanisi, გიორგი გურამიშვილის ქ. 7";
+
+function remindText_(name, date, time) {
+  return "გამარჯობა " + String(name || "").split(" ")[0] + "! შეგახსენებ, " + (date === today_() ? "დღეს" : "ხვალ") + " " + time +
+    "-ზე პადელის ვარჯიში გვაქვს. " + PLACE + ". თუ ვერ მოდიხარ, გააუქმე კაბინეტიდან ან მომწერე. Giviko";
+}
+
+function reminders() {
+  const db = Db_(), now = Date.now(), props = PropertiesService.getScriptProperties();
+  let sent = [];
+  try { sent = JSON.parse(props.getProperty("REMINDED") || "[]"); } catch (e) {}
+  const tok = makeToken_("a", "admin", 1), due = [];
+  [now, now + 864e5].map(t => Utilities.formatDate(new Date(t), TZ, "yyyy-MM-dd")).forEach(date => {
+    route_({ action: "admin_day", token: tok, date }, db).sessions.forEach(s => {
+      const h = (new Date(date + "T" + s.time + ":00+04:00").getTime() - now) / 36e5; // თბილისი UTC+4
+      const kind = h > 23 && h <= 24 ? "24" : h > 1 && h <= 2 ? "2" : "";
+      const people = s.members.filter(m => !m.away);
+      const key = date + " " + s.time + " " + s.ref + " " + kind;
+      if (!kind || !people.length || sent.includes(key)) return;
+      sent.push(key);
+      due.push({ date, s, kind, people });
+    });
+  });
+  if (!due.length) return;
+  props.setProperty("REMINDED", JSON.stringify(sent.slice(-300)));
+  due.forEach(({ date, s, kind, people }) => {
+    const when = kind === "2" ? "2 საათში" : "24 საათში";
+    const wa = m => "https://wa.me/995" + m.phone + "?text=" + encodeURIComponent(remindText_(m.name, date, s.time));
+    notify_("შეხსენება: ვარჯიში " + when + " · " + s.time,
+      [date + " " + s.time + " · " + s.label].concat(people.map(m => m.name + " · " + m.phone), ["შეხსენების გაგზავნა: ტრენერის პანელი → დასწრება → WhatsApp"]),
+      "<p><b>" + date + " " + s.time + "</b> · " + s.label + "</p><p>შეხსენების გასაგზავნად დააჭირე სახელს:</p><ul>" +
+        people.map(m => '<li><a href="' + wa(m) + '">' + m.name + " · " + m.phone + "</a></li>").join("") + "</ul>");
+  });
+}
+
+function installReminders() {
+  ScriptApp.getProjectTriggers().filter(t => t.getHandlerFunction() === "reminders").forEach(t => ScriptApp.deleteTrigger(t));
+  ScriptApp.newTrigger("reminders").timeBased().everyHours(1).create();
+  console.log("შეხსენებები ჩაირთო: ყოველ საათში შემოწმდება, ხომ არ არის ვარჯიში 24 ან 2 საათში.");
 }
 
 /* ---------- პირველი გაშვება ----------
@@ -386,6 +579,6 @@ function notify_(kind, d) {
 function setup() {
   const ss = book_();
   console.log("ცხრილი: " + ss.getUrl());
-  notify_("individual", { name: "ტესტი", phone: "555123456", date: today_(), time: "19:00", people: 2, price: PRICES[2], experience: EXPERIENCE[1] });
+  notify_("ახალი ინდივიდუალური მოთხოვნა", reqLines_({ name: "ტესტი", phone: "555123456", date: today_(), time: "19:00", people: 2, price: PRICES[2], experience: EXPERIENCE[1] }));
   console.log("სატესტო შეტყობინება გაიგზავნა" + (NOTIFY_EMAIL ? " მეილზე" : "") + (WHATSAPP_PHONE && CALLMEBOT_APIKEY ? " და WhatsApp-ში" : ""));
 }

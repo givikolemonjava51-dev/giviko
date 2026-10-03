@@ -6,6 +6,8 @@
 <title>Giviko — ვარჯიშები</title>
 <meta name="theme-color" content="#0B1418">
 <meta name="description" content="დაჯავშნე ინდივიდუალური ან ჯგუფური ვარჯიში Giviko-სთან.">
+<link rel="preconnect" href="https://script.google.com">
+<link rel="preconnect" href="https://script.googleusercontent.com">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+Georgian:wdth,wght@62.5..100,400..900&family=JetBrains+Mono:wght@500;700&display=swap">
@@ -130,7 +132,7 @@ section { padding-block: 32px; }
 .slot .time { font-family: var(--mono); font-weight: 700; font-size: 15px; font-variant-numeric: tabular-nums; }
 .slot .time small { display: block; font-weight: 500; color: var(--muted); font-size: 12px; }
 .seats { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
-.dots { display: flex; gap: 4px; }
+.dots { display: flex; gap: 4px; flex: none; }
 .dots i { width: 14px; height: 14px; border-radius: 50%; border: 1.5px solid var(--accent); display: block; }
 .dots i.on { background: var(--accent); }
 .slot.is-full .dots i { border-color: var(--full); background: var(--full); }
@@ -207,7 +209,7 @@ dialog::backdrop { background: rgba(2, 8, 10, .7); }
 .page-head h1 { font-size: clamp(40px, 7vw, 72px); text-transform: uppercase; }
 .page-head h1 em { font-style: normal; color: var(--accent); }
 .page-head .sub-line { color: var(--muted); font-family: var(--mono); font-size: 14px; margin-top: 8px; }
-.stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; margin-block: 24px; }
+.stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; margin-block: 24px; }
 .stat { background: var(--surface); padding: 20px 22px; display: grid; gap: 4px; }
 .stat b { font-family: var(--display); font-stretch: 62.5%; font-weight: 900; font-size: 56px; line-height: 1; font-variant-numeric: tabular-nums; }
 .stat b small { font-size: 24px; color: var(--muted); }
@@ -292,8 +294,61 @@ footer { border-top: 1px solid var(--line); margin-top: 48px; }
 footer .wrap { padding-block: 24px; display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; color: var(--muted); font-size: 14px; }
 footer a { color: var(--muted); }
 
+/* Coach */
+.coach { display: grid; grid-template-columns: 260px 1fr; gap: 28px; align-items: center; }
+.coach .ph { aspect-ratio: 4 / 5; border-radius: 14px; overflow: hidden; background: var(--accent-soft); display: grid; place-items: center; }
+.coach .ph img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.coach .ph span { font-family: var(--display); font-stretch: 62.5%; font-weight: 900; font-size: 72px; color: var(--accent); }
+.coach h2 { font-size: clamp(34px, 5vw, 52px); text-transform: uppercase; margin: 6px 0 12px; }
+.coach p { color: var(--muted); margin: 0 0 18px; max-width: 56ch; font-size: 17px; }
+.facts { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 18px; }
+.facts div { display: grid; padding: 10px 16px; border: 1px solid var(--line); border-radius: 12px; background: var(--bg); }
+.facts b { font-family: var(--display); font-stretch: 62.5%; font-weight: 900; font-size: 28px; line-height: 1.1; color: var(--accent); }
+.facts span { font-size: 13px; color: var(--muted); }
+
+/* Location */
+.loc { display: grid; grid-template-columns: 1fr 1.3fr; gap: 16px; }
+.loc h3 { font-size: 30px; text-transform: uppercase; margin: 6px 0 4px; }
+.loc .addr { margin: 0 0 14px; font-size: 17px; }
+.loc ul { margin: 0 0 20px; padding-left: 18px; color: var(--muted); font-size: 15px; }
+.loc ul li + li { margin-top: 4px; }
+.map { border-radius: 16px; overflow: hidden; border: 1px solid var(--line); min-height: 280px; background: var(--surface); }
+.map iframe { width: 100%; height: 100%; min-height: 280px; border: 0; display: block; }
+
+/* Floating contact */
+.fab { position: fixed; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); z-index: 20; display: flex; flex-direction: column; gap: 10px; align-items: flex-end; }
+.fab a { display: inline-flex; align-items: center; gap: 8px; height: 52px; padding: 0 18px 0 14px; border-radius: 999px; font-weight: 700; text-decoration: none; box-shadow: 0 8px 24px rgba(0, 0, 0, .45); }
+.fab svg { width: 24px; height: 24px; flex: none; }
+.fab .wa { background: #25D366; color: #06210F; }
+.fab .call { background: var(--surface-2); color: var(--ink); border: 1px solid var(--line); display: none; }
+.wa-btn { background: #25D366; color: #06210F; }
+.wa-btn:hover { background: #3be07a; }
+
+/* Cabinet additions */
+.up .acts { display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
+.up .acts button { appearance: none; background: none; border: 1px solid var(--line); color: var(--muted); font: inherit; font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 999px; cursor: pointer; }
+.up .acts button:hover { color: var(--ink); border-color: var(--muted); }
+.up.off .what b, .up.off .datebox b { text-decoration: line-through; color: var(--muted); }
+.pbar { height: 14px; border-radius: 999px; background: var(--bg); border: 1px solid var(--line); overflow: hidden; position: relative; }
+.pbar i { position: absolute; inset: 0 auto 0 0; background: var(--accent); border-radius: 999px; }
+.pbar.low i { background: var(--warn); }
+.pass .used-txt { font-size: 15px; }
+.pass .used-txt b { font-family: var(--display); font-stretch: 62.5%; font-weight: 900; font-size: 26px; }
+.renew { display: grid; gap: 10px; padding: 14px; border: 1.5px dashed color-mix(in srgb, var(--warn) 55%, transparent); border-radius: 12px; font-size: 14px; }
+.renew > b { font-size: 15px; }
+.wrow { display: flex; justify-content: space-between; align-items: center; gap: 10px; font-size: 14px; padding: 10px 0 0; }
+.stat .nx { font-size: 26px; line-height: 1.15; }
+.mem.away .who b { color: var(--muted); }
+.mem .acts { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
+.wa-link { font-size: 12px; font-weight: 700; color: #25D366; text-decoration: none; border: 1px solid color-mix(in srgb, #25D366 40%, transparent); border-radius: 8px; padding: 6px 10px; white-space: nowrap; }
+
 @media (max-width: 860px) {
-  .hero, .prices, .ind, .cab-grid { grid-template-columns: 1fr; }
+  .hero, .prices, .ind, .cab-grid, .loc { grid-template-columns: 1fr; }
+  .coach { grid-template-columns: 140px 1fr; gap: 18px; align-items: start; }
+  .fab .call { display: inline-flex; }
+  .fab a { padding: 0; width: 52px; justify-content: center; }
+  .fab a span { display: none; }
+  footer { padding-bottom: 80px; }
   .daypick { grid-template-columns: 1fr; }
   .daypanel { order: var(--o, 99); margin-top: 0; }
   .hero { padding-block: 36px 16px; }
@@ -311,7 +366,10 @@ footer a { color: var(--muted); }
   .price-table .per { display: none; }
   .price-table .amt { font-size: 24px; }
   .stats { grid-template-columns: 1fr 1fr; }
-  .stats .stat:first-child { grid-column: 1 / -1; }
+  .coach { grid-template-columns: 1fr; }
+  .up { grid-template-columns: 48px 1fr; row-gap: 6px; }
+  .up > .chip { grid-column: 2; justify-self: start; }
+  .coach .ph { max-width: 220px; }
   .stat b { font-size: 44px; }
   .mem { grid-template-columns: 1fr; }
   .mrow { grid-template-columns: 1fr auto; }
@@ -328,9 +386,11 @@ footer a { color: var(--muted); }
     <a class="logo" href="#">GIVIKO<span>.</span></a>
     <div class="top-right">
       <nav class="nav">
+        <a href="#about">ტრენერი</a>
         <a href="#prices">ფასები</a>
         <a href="#groups">ჯგუფები</a>
         <a href="#individual">ინდივიდუალური</a>
+        <a href="#location">ლოკაცია</a>
       </nav>
       <button class="btn btn-ghost acct" id="acctBtn" type="button">შესვლა</button>
     </div>
@@ -349,6 +409,25 @@ footer a { color: var(--muted); }
       </div>
     </div>
   </div>
+
+  <section id="about">
+    <div class="card coach">
+      <div class="ph"><img src="https://padelcoach.ge/img/coach.jpg" alt="გივიკო ლემონჯავა" width="520" height="650" loading="lazy" decoding="async" onerror="this.replaceWith(Object.assign(document.createElement('span'), { textContent: 'GL' }))"></div>
+      <div>
+        <div class="label">შენი ტრენერი</div>
+        <h2>გივიკო ლემონჯავა</h2>
+        <p>გამარჯობა! მე ვარ გივიკო ლემონჯავა, პადელის მწვრთნელი თბილისში. ვმუშაობ ყველა დონის მოთამაშესთან, სრულიად დამწყებიდან გამოცდილამდე.</p>
+        <div class="facts">
+          <div><b>2+</b><span>წლის გამოცდილება</span></div>
+          <div><b>ქარ · ENG</b><span>ქართული და ინგლისური</span></div>
+        </div>
+        <div class="cta">
+          <a class="btn wa-btn" href="https://wa.me/995599046801" target="_blank" rel="noopener" data-wa>მომწერე WhatsApp-ში</a>
+          <a class="btn btn-ghost" href="https://www.instagram.com/padelwithgiviko/" target="_blank" rel="noopener">Instagram</a>
+        </div>
+      </div>
+    </div>
+  </section>
 
   <section id="prices">
     <div class="sec-head"><h2>ფასები</h2></div>
@@ -425,6 +504,24 @@ footer a { color: var(--muted); }
         <button class="btn btn-primary" type="submit" id="indBtn">მოთხოვნის გაგზავნა</button>
         <p class="msg" id="indMsg" role="status"></p>
       </form>
+    </div>
+  </section>
+
+  <section id="location">
+    <div class="sec-head"><h2>ლოკაცია</h2></div>
+    <div class="loc">
+      <div class="card">
+        <div class="label">სად ვვარჯიშობთ</div>
+        <h3>Padelbade Krtsanisi</h3>
+        <p class="addr">გიორგი გურამიშვილის ქ. 7, თბილისი</p>
+        <ul>
+          <li>დახურული კორტი, ამინდი ხელს არ შეგიშლის</li>
+          <li>გასახდელი, საშხაპე და სველი წერტილები</li>
+          <li>ძველი თბილისიდან ~5 წუთი ტაქსით</li>
+        </ul>
+        <a class="btn btn-primary" href="https://www.google.com/maps/search/?api=1&amp;query=41.6738203,44.8262025&amp;query_place_id=ChIJjUyxFPINREARSYG9mflWPKo" target="_blank" rel="noopener">გახსენი Google Maps-ში</a>
+      </div>
+      <div class="map"><iframe title="Padelbade Krtsanisi რუკაზე" loading="lazy" referrerpolicy="no-referrer-when-downgrade" src="https://www.google.com/maps?q=41.6738203,44.8262025&amp;z=16&amp;output=embed"></iframe></div>
     </div>
   </section>
 </main>
@@ -516,15 +613,26 @@ footer a { color: var(--muted); }
 
 <footer>
   <div class="wrap">
-    <span>© <span id="yr"></span> Giviko · ჯგუფში მაქსიმუმ 4 ადამიანი</span>
-    <a href="#trainer">ტრენერის შესვლა</a>
+    <span>© <span id="yr"></span> Giviko · Padelbade Krtsanisi, გურამიშვილის ქ. 7</span>
+    <span><a href="tel:+995599046801">+995 599 04 68 01</a> · <a href="https://www.instagram.com/padelwithgiviko/" target="_blank" rel="noopener">@padelwithgiviko</a> · <a href="#trainer">ტრენერის შესვლა</a></span>
   </div>
 </footer>
+
+<div class="fab" id="fab">
+  <a class="call" href="tel:+995599046801" aria-label="დარეკვა: +995 599 04 68 01">
+    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1-.25 11.4 11.4 0 0 0 3.6.57 1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.25.2 2.45.57 3.57a1 1 0 0 1-.25 1z"/></svg>
+    <span>დარეკვა</span>
+  </a>
+  <a class="wa" href="https://wa.me/995599046801" target="_blank" rel="noopener" aria-label="მომწერე WhatsApp-ში" data-wa>
+    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2zm0 18.2a8.2 8.2 0 0 1-4.2-1.15l-.3-.18-3 .78.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2zm4.5-6.1c-.25-.12-1.46-.72-1.69-.8-.23-.08-.39-.12-.55.12-.16.25-.63.8-.78.97-.14.16-.29.18-.53.06a6.7 6.7 0 0 1-3.32-2.9c-.25-.43.25-.4.71-1.33a.45.45 0 0 0-.02-.42c-.06-.12-.55-1.33-.76-1.82-.2-.48-.4-.41-.55-.42h-.47a.9.9 0 0 0-.65.3 2.74 2.74 0 0 0-.86 2.04 4.76 4.76 0 0 0 1 2.53 10.9 10.9 0 0 0 4.17 3.68c1.55.67 2.16.73 2.94.61.47-.07 1.46-.6 1.67-1.17.2-.58.2-1.07.14-1.17-.06-.1-.22-.16-.47-.28z"/></svg>
+    <span>WhatsApp</span>
+  </a>
+</div>
 
 <!-- Group sign-up -->
 <dialog id="dlg">
   <form class="dlg" id="grpForm" novalidate>
-    <h3>ჯგუფში ჩაწერა</h3>
+    <h3 id="dlgTitle">ჯგუფში ჩაწერა</h3>
     <div class="meta"><span id="dlgGroup"></span><b id="dlgSeats"></b></div>
     <div class="as-user" data-member-only data-pre-pay hidden></div>
     <div class="field" data-guest-only data-pre-pay>
@@ -540,7 +648,8 @@ footer a { color: var(--muted); }
       <input id="grpPin" class="pin" inputmode="numeric" autocomplete="off" maxlength="4" placeholder="••••">
       <span class="hint">მოიფიქრე 4 ციფრი. უკვე გაქვს ანგარიში? შეიყვანე შენი PIN.</span>
     </div>
-    <div class="paystep">
+    <p class="hint" id="waitText" hidden style="font-size:14px;margin:0">ეს ჯგუფი ახლა სავსეა. ჩაეწერე მოლოდინის სიაში და როგორც კი ადგილი გათავისუფლდება, დაგიკავშირდები.</p>
+    <div class="paystep" id="payStep">
       <b id="payTitle">გადახდა ანგარიშზე</b>
       <span id="payText">ჩასაწერად გადარიცხე 400 ₾ ამ ანგარიშზე. ადგილი შენთვის დაიჯავშნება და როგორც კი ჩარიცხვას დავადასტურებ, ჩაირიცხები კურსზე.</span>
       <div id="payBox"></div>
@@ -549,6 +658,35 @@ footer a { color: var(--muted); }
     <div class="actions">
       <button class="btn btn-ghost" type="button" id="dlgClose">დახურვა</button>
       <button class="btn btn-primary" type="submit" id="grpBtn">ადგილის დაჯავშნა</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- Cancel / reschedule a session -->
+<dialog id="chgDlg">
+  <form class="dlg" id="chgForm" novalidate>
+    <h3>ვარჯიშის შეცვლა</h3>
+    <div class="meta"><span id="chgWhat"></span><b id="chgWhen"></b></div>
+    <div class="seg seg2" id="chgSeg" style="grid-template-columns:1fr 1fr">
+      <input type="radio" name="chgAct" id="chgCancel" value="cancel" checked><label for="chgCancel"><b class="t">გაუქმება</b></label>
+      <input type="radio" name="chgAct" id="chgMove" value="reschedule"><label for="chgMove"><b class="t">სხვა დროზე გადატანა</b></label>
+    </div>
+    <div id="chgNew" hidden>
+      <div class="row2" id="chgInd">
+        <div class="field"><label for="chgDate">ახალი დღე</label><input type="date" id="chgDate"></div>
+        <div class="field"><label for="chgTime">ახალი დრო</label><select id="chgTime"></select></div>
+      </div>
+      <div class="field" id="chgGrp">
+        <label for="chgSlot">რომელ ჯგუფურ ვარჯიშზე მოხვალ ნაცვლად</label>
+        <select id="chgSlot"></select>
+        <span class="hint">ჩამონათვალშია მომდევნო 2 კვირის ჯგუფები, სადაც ადგილია.</span>
+      </div>
+    </div>
+    <p class="hint" id="chgNote" style="font-size:14px;margin:0"></p>
+    <p class="msg" id="chgMsg" role="status"></p>
+    <div class="actions">
+      <button class="btn btn-ghost" type="button" id="chgClose">დახურვა</button>
+      <button class="btn btn-primary" type="submit" id="chgBtn">გაგზავნა</button>
     </div>
   </form>
 </dialog>
@@ -594,15 +732,20 @@ const BANK = {
 };
 const GROUP_PRICE = 400;
 
+/* კონტაქტი */
+const COACH_PHONE = "995599046801";
+const waLink = (phone, text) => `https://wa.me/${phone}` + (text ? `?text=${encodeURIComponent(text)}` : "");
+
 const CAPACITY = 4;
 const PASS = 8;
 const PRICES = { 1: 140, 2: 180, 3: 210, 4: 240 };
 const SCHEDULE = [
-  { key: "mw", title: "ორშაბათი · ოთხშაბათი", label: "ორშაბათი-ოთხშაბათი", sub: "საღამოს ჯგუფები", days: [1, 3], hours: ["19:00", "20:00", "21:00", "22:00"] },
-  { key: "tt", title: "სამშაბათი · ხუთშაბათი", label: "სამშაბათი-ხუთშაბათი", sub: "საღამოს ჯგუფები", days: [2, 4], hours: ["19:00", "20:00", "21:00", "22:00"] },
-  { key: "ss", title: "შაბათი · კვირა", label: "შაბათი-კვირა", sub: "დილის და საღამოს ჯგუფები", days: [6, 0], hours: ["09:00", "10:00", "18:00"] },
+  { key: "mw", title: "ორშაბათი · ოთხშაბათი", label: "ორშაბათი-ოთხშაბათი", short: "ორშ/ოთხ", sub: "საღამოს ჯგუფები", days: [1, 3], hours: ["19:00", "20:00", "21:00", "22:00"] },
+  { key: "tt", title: "სამშაბათი · ხუთშაბათი", label: "სამშაბათი-ხუთშაბათი", short: "სამ/ხუთ", sub: "საღამოს ჯგუფები", days: [2, 4], hours: ["19:00", "20:00", "21:00", "22:00"] },
+  { key: "ss", title: "შაბათი · კვირა", label: "შაბათი-კვირა", short: "შაბ/კვ", sub: "დილის და საღამოს ჯგუფები", days: [6, 0], hours: ["09:00", "10:00", "18:00"] },
 ];
 const WD = ["კვირა", "ორშაბათი", "სამშაბათი", "ოთხშაბათი", "ხუთშაბათი", "პარასკევი", "შაბათი"];
+const WDS = ["კვ", "ორშ", "სამ", "ოთხ", "ხუთ", "პარ", "შაბ"];
 const MON = ["იან", "თებ", "მარ", "აპრ", "მაი", "ივნ", "ივლ", "აგვ", "სექ", "ოქტ", "ნოე", "დეკ"];
 
 const $ = id => document.getElementById(id);
@@ -619,17 +762,24 @@ const niceDate = s => { const d = parseYmd(s); return `${d.getDate()} ${MON[d.ge
 
 const GROUPS = {};
 SCHEDULE.forEach(day => day.hours.forEach(h => {
-  GROUPS[gid(day, h)] = { id: gid(day, h), days: day.days, time: h, label: `${day.label} ${h}-${endOf(h)}` };
+  GROUPS[gid(day, h)] = { id: gid(day, h), day, days: day.days, time: h, label: `${day.label} ${h}-${endOf(h)}` };
 }));
+const nowHM = () => { const n = new Date(); return `${pad(n.getHours())}:${pad(n.getMinutes())}`; };
+const dayWord = d => d === todayStr() ? "დღეს" : d === addDays(todayStr(), 1) ? "ხვალ" : WDS[parseYmd(d).getDay()] + ", " + parseYmd(d).getDate() + " " + MON[parseYmd(d).getMonth()];
+document.querySelectorAll("[data-wa]").forEach(a => (a.href = waLink(COACH_PHONE, "გამარჯობა! მაინტერესებს პადელის ვარჯიში.")));
 
 /* ---------- Session ---------- */
 const store = {
   get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
   set(k, v) { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch (e) {} },
 };
+// ბოლოს ჩატვირთული მონაცემები ინახება ბრაუზერში, რომ გვერდი მაშინვე გამოჩნდეს,
+// სანამ სერვერიდან ახალი ციფრები მოვა.
+const saved = k => { try { return JSON.parse(store.get(k)); } catch (e) { return null; } };
+const keep = (k, v) => store.set(k, v == null ? null : JSON.stringify(v));
 let sToken = store.get("gv_s");
 let aToken = store.get("gv_a");
-let profile = null;
+let profile = sToken ? saved("gv_p") : null;
 
 /* ---------- API ---------- */
 const DEMO = !API_URL;
@@ -658,6 +808,8 @@ const ERR = {
   set_password: "ჯერ ჩაწერე ტრენერის პაროლი Code.gs-ში (ADMIN_PASSWORD).",
   past: "აირჩიე დღევანდელი ან მომავალი თარიღი.",
   experience: "აირჩიე სათამაშო გამოცდილება.",
+  already_wait: "ამ ჯგუფის მოლოდინის სიაში უკვე ხარ.",
+  already_changed: "ამ ვარჯიშზე მოთხოვნა უკვე გაგზავნილია.",
 };
 const errText = e => ERR[e] || "ვერ გაიგზავნა. სცადე თავიდან ან დამიკავშირდი ტელეფონით.";
 function say(el, text, kind) { el.textContent = text || ""; el.className = "msg" + (kind ? " " + kind : ""); }
@@ -670,6 +822,7 @@ function route() {
   $("viewHome").hidden = view !== "home";
   $("viewCabinet").hidden = view !== "cabinet";
   $("viewTrainer").hidden = view !== "trainer";
+  $("fab").hidden = view === "trainer";
   if (view === "home" && h && $(h)) $(h).scrollIntoView();
   if (view !== "home") window.scrollTo(0, 0);
   if (view === "cabinet") loadProfile();
@@ -698,11 +851,11 @@ $("acctBtn").addEventListener("click", () => { sToken ? (location.hash = "cabine
 
 function setStudent(token, prof) {
   sToken = token; store.set("gv_s", token);
-  if (prof) profile = prof;
+  if (prof) { profile = prof; keep("gv_p", prof); }
   renderAccount();
 }
 function logout() {
-  sToken = null; profile = null; store.set("gv_s", null);
+  sToken = null; profile = null; store.set("gv_s", null); keep("gv_p", null);
   renderAccount(); location.hash = ""; renderSchedule();
 }
 $("logoutBtn").addEventListener("click", logout);
@@ -762,13 +915,19 @@ $("priceRows").innerHTML = Object.entries(PRICES).map(([n, p]) =>
   `<div class="ptile">${peopleIcon(+n)}<span class="pn">${n} ადამ.</span><b>${p} ₾</b><span class="pp">${Math.round(p / n)} ₾ / ადამ.</span></div>`).join("");
 
 /* ---------- Schedule ---------- */
-let counts = null;
+let counts = saved("gv_c");
 const daysEl = $("days");
 let selDay = null;
 function freeIn(day) { return day.hours.reduce((s, h) => s + Math.max(0, CAPACITY - (counts[gid(day, h)] || 0)), 0); }
+function myGroups() {
+  return {
+    mine: new Set((profile?.memberships || []).map(m => m.group)),
+    pend: new Set((profile?.memberships || []).filter(m => m.pending).map(m => m.group)),
+    wait: new Set((profile?.waitlist || []).map(w => w.group)),
+  };
+}
 function renderSchedule() {
-  const mine = new Set((profile?.memberships || []).map(m => m.group));
-  const pend = new Set((profile?.memberships || []).filter(m => m.pending).map(m => m.group));
+  const { mine, pend, wait } = myGroups();
   const sel = SCHEDULE.find(d => d.key === selDay);
   const card = (day, i) => {
     const free = counts ? freeIn(day) : null;
@@ -778,25 +937,28 @@ function renderSchedule() {
       <span class="meta"><span>${day.hours.length} ჯგუფი · ${info}</span><span class="arr" aria-hidden="true">⌄</span></span>
     </button>`;
   };
-  const panel = sel ? `<div class="daypanel" id="dayPanel" style="--o:${SCHEDULE.indexOf(sel) * 2 + 1}"><div class="label" style="padding-top:14px">${sel.title} · აირჩიე დრო</div>${sel.hours.map(h => slotHtml(sel, h, mine, pend)).join("")}</div>` : "";
+  const panel = sel ? `<div class="daypanel" id="dayPanel" style="--o:${SCHEDULE.indexOf(sel) * 2 + 1}"><div class="label" style="padding-top:14px">${sel.title} · აირჩიე დრო</div>${sel.hours.map(h => slotHtml(sel, h, mine, pend, wait)).join("")}</div>` : "";
   daysEl.innerHTML = `<div class="daypick">${SCHEDULE.map(card).join("")}${panel}</div>` +
     (sel ? "" : `<p class="pick-hint">დააჭირე დღეებს და გამოჩნდება ჯგუფების დრო.</p>`);
 }
-function slotHtml(day, h, mine, pend = new Set()) {
+function slotHtml(day, h, mine, pend = new Set(), wait = new Set()) {
   const id = gid(day, h);
   const time = `<div class="time">${h}<small>${endOf(h)}-მდე</small></div>`;
   if (!counts) {
     return `<div class="slot loading">${time}<div class="seats"><div class="dots">${"<i></i>".repeat(CAPACITY)}</div><span class="txt">იტვირთება…</span></div><button class="btn btn-primary" disabled>ჩაწერა</button></div>`;
   }
   const c = Math.min(counts[id] || 0, CAPACITY), free = CAPACITY - c, full = free <= 0, isMine = mine.has(id);
-  const txt = isMine ? (pend.has(id) ? "შენი ადგილი · გადახდის მოლოდინში" : "შენი ჯგუფი") : full ? "ჯგუფი სავსეა" : `${c} / ${CAPACITY} დაკავებული · ${free} თავისუფალი`;
+  const waiting = !isMine && full && wait.has(id);
+  const txt = isMine ? (pend.has(id) ? "შენი ადგილი · გადახდის მოლოდინში" : "შენი ჯგუფი") : waiting ? "სავსეა · მოლოდინის სიაში ხარ"
+    : full ? `${CAPACITY} / ${CAPACITY} · ჯგუფი სავსეა` : `${c} / ${CAPACITY} ადგილი დაკავებულია`;
   return `<div class="slot${full ? " is-full" : ""}${isMine ? " mine" : ""}">${time}
     <div class="seats">
       <div class="dots" aria-hidden="true">${Array.from({ length: CAPACITY }, (_, i) => `<i class="${i < c ? "on" : ""}"></i>`).join("")}</div>
       <span class="txt${free === 1 && !isMine ? " few" : ""}">${txt}</span>
     </div>
-    ${isMine ? `<a class="btn btn-ghost" href="#cabinet">კაბინეტი</a>`
-      : `<button class="btn btn-primary" data-group="${id}" data-label="${day.title}, ${h}–${endOf(h)}" ${full ? "disabled" : ""}>${full ? "სავსეა" : "ჩაწერა"}</button>`}
+    ${isMine || waiting ? `<a class="btn btn-ghost" href="#cabinet">კაბინეტი</a>`
+      : full ? `<button class="btn btn-ghost" data-group="${id}" data-wait="1" data-label="${day.title}, ${h}–${endOf(h)}">მოლოდინის სია</button>`
+      : `<button class="btn btn-primary" data-group="${id}" data-label="${day.title}, ${h}–${endOf(h)}">დაჯავშნა</button>`}
   </div>`;
 }
 async function loadCounts() {
@@ -804,8 +966,9 @@ async function loadCounts() {
     const res = await apiGet();
     if (!res.ok) throw new Error();
     counts = res.counts || {};
+    keep("gv_c", counts);
     $("loadErr").hidden = true;
-  } catch (e) { $("loadErr").hidden = false; }
+  } catch (e) { if (!counts) $("loadErr").hidden = false; }
   renderSchedule();
 }
 
@@ -849,7 +1012,24 @@ $("grpName").addEventListener("input", renderPay);
 
 /* ---------- Group dialog ---------- */
 const dlg = $("dlg"), grpForm = $("grpForm"), grpMsg = $("grpMsg"), grpBtn = $("grpBtn");
-let currentGroup = null;
+let currentGroup = null, waitMode = false;
+const grpLabel = () => waitMode ? "დამამატე მოლოდინის სიაში" : "ადგილის დაჯავშნა";
+function openGroup(b) {
+  currentGroup = b.dataset.group; waitMode = !!b.dataset.wait;
+  $("dlgTitle").textContent = waitMode ? "მოლოდინის სია" : "ჯგუფში ჩაწერა";
+  $("dlgGroup").textContent = b.dataset.label;
+  $("dlgSeats").textContent = waitMode ? "ჯგუფი სავსეა" : `${CAPACITY - (counts[currentGroup] || 0)} ადგილი დარჩა`;
+  say(grpMsg, "");
+  grpBtn.hidden = false; grpBtn.disabled = false; grpBtn.textContent = grpLabel();
+  renderAccount();
+  $("waitText").hidden = !waitMode;
+  $("payStep").hidden = waitMode;
+  $("payTitle").textContent = "გადახდა ანგარიშზე";
+  $("payText").textContent = `ჩასაწერად გადარიცხე ${GROUP_PRICE} ₾ ამ ანგარიშზე. ადგილი შენთვის დაიჯავშნება და როგორც კი ჩარიცხვას დავადასტურებ, ჩაირიცხები კურსზე.`;
+  renderPay();
+  dlg.showModal();
+  if (!sToken) $("grpName").focus();
+}
 daysEl.addEventListener("click", e => {
   const d = e.target.closest("button[data-day]");
   if (d) {
@@ -859,18 +1039,7 @@ daysEl.addEventListener("click", e => {
     return;
   }
   const b = e.target.closest("button[data-group]");
-  if (!b || b.disabled) return;
-  currentGroup = b.dataset.group;
-  $("dlgGroup").textContent = b.dataset.label;
-  $("dlgSeats").textContent = `${CAPACITY - (counts[currentGroup] || 0)} ადგილი დარჩა`;
-  say(grpMsg, "");
-  grpBtn.hidden = false; grpBtn.disabled = false;
-  renderAccount();
-  $("payTitle").textContent = "გადახდა ანგარიშზე";
-  $("payText").textContent = `ჩასაწერად გადარიცხე ${GROUP_PRICE} ₾ ამ ანგარიშზე. ადგილი შენთვის დაიჯავშნება და როგორც კი ჩარიცხვას დავადასტურებ, ჩაირიცხები კურსზე.`;
-  renderPay();
-  dlg.showModal();
-  if (!sToken) $("grpName").focus();
+  if (b && !b.disabled) openGroup(b);
 });
 $("dlgClose").addEventListener("click", () => dlg.close());
 dlg.addEventListener("click", e => { if (e.target === dlg) dlg.close(); });
@@ -889,9 +1058,28 @@ grpForm.addEventListener("submit", async e => {
   const bad = guestCheck("grpName", "grpPhone", "grpPin");
   if (bad) return say(grpMsg, bad, "err");
   grpBtn.disabled = true; grpBtn.textContent = "იგზავნება…";
+  if (waitMode) {
+    try {
+      const res = await api({ action: "waitlist", group: currentGroup, ...guestFields("grpName", "grpPhone", "grpPin") });
+      if (res.ok) {
+        setStudent(res.token);
+        grpForm.reset();
+        await refreshProfile();
+        grpForm.querySelectorAll("[data-pre-pay]").forEach(el => (el.hidden = true));
+        $("dlgSeats").textContent = `რიგში ${res.position}-ე ხარ`;
+        say(grpMsg, "დაგამატე მოლოდინის სიაში. როგორც კი ადგილი გათავისუფლდება, დაგიკავშირდები.", "ok");
+        grpBtn.hidden = true;
+      } else if (res.error === "not_full") {
+        await loadCounts();
+        say(grpMsg, "ამ ჯგუფში ადგილი გათავისუფლდა! დახურე და დააჭირე „დაჯავშნა“.", "ok");
+      } else { afterAuthFail(res); say(grpMsg, errText(res.error), "err"); }
+    } catch (err) { say(grpMsg, errText(), "err"); }
+    grpBtn.disabled = false; grpBtn.textContent = grpLabel();
+    return;
+  }
   try {
     const res = await api({ action: "group", group: currentGroup, ...guestFields("grpName", "grpPhone", "grpPin") });
-    if (res.counts) counts = res.counts;
+    if (res.counts) { counts = res.counts; keep("gv_c", counts); }
     if (res.ok) {
       setStudent(res.token);
       const typed = $("grpName").value;
@@ -906,7 +1094,7 @@ grpForm.addEventListener("submit", async e => {
     } else { afterAuthFail(res); say(grpMsg, errText(res.error), "err"); }
     renderSchedule();
   } catch (err) { say(grpMsg, errText(), "err"); }
-  grpBtn.disabled = false; grpBtn.textContent = "ადგილის დაჯავშნა";
+  grpBtn.disabled = false; grpBtn.textContent = grpLabel();
 });
 
 /* ---------- Individual form ---------- */
@@ -946,7 +1134,7 @@ async function refreshProfile() {
   if (!sToken) return;
   try {
     const res = await api({ action: "me", token: sToken });
-    if (res.ok) { profile = res.profile; renderAccount(); renderSchedule(); }
+    if (res.ok) { profile = res.profile; keep("gv_p", profile); renderAccount(); renderSchedule(); }
     else if (res.error === "auth") logout();
   } catch (e) {}
 }
@@ -958,59 +1146,77 @@ async function loadProfile() {
 }
 
 function upcomingItems(p) {
-  const t = todayStr(), now = new Date(), nowHM = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
-  const items = [];
+  const t = todayStr(), hm = nowHM(), changes = p.changes || [], items = [];
+  const changeOf = (ref, date) => changes.find(c => c.ref === ref && c.date === date && c.status !== "უარყოფილი");
   p.memberships.filter(m => !m.pending).forEach(m => {
     let left = m.remaining, d = t;
+    // დადასტურებული გადატანა: ანაზღაურებითი ვარჯიში ცალკე დღეს
+    changes.filter(c => c.ref === m.id && c.action === "reschedule" && c.status === "დადასტურებული" && c.newDate >= t).forEach(c => {
+      items.push({ date: c.newDate, time: c.newTime, title: "ანაზღაურებითი ვარჯიში", sub: `${m.label} · ${niceDate(c.date).split(",")[0]}-ის ნაცვლად`, chip: ["ok", "გადატანილი"] });
+      left--;
+    });
     for (let i = 0; i < 35 && left > 0; i++, d = addDays(d, 1)) {
       if (!m.days.includes(parseYmd(d).getDay())) continue;
-      if (d === t && m.time <= nowHM) continue;
-      items.push({ date: d, time: m.time, title: "ჯგუფური ვარჯიში", sub: m.label, chip: ["acc", "ჯგუფი"] });
+      if (d === t && m.time <= hm) continue;
+      const c = changeOf(m.id, d);
+      if (c && c.action === "reschedule" && c.status === "დადასტურებული") continue;
+      if (c && c.action === "cancel") { items.push({ date: d, time: m.time, title: "ჯგუფური ვარჯიში", sub: m.label, chip: ["no", "ვერ მოვალ"], off: true }); continue; }
+      items.push({ date: d, time: m.time, title: "ჯგუფური ვარჯიში", sub: c ? `${m.label} · გადატანა ${niceDate(c.newDate).split(",")[0]}, ${c.newTime}` : m.label,
+        chip: c ? ["wait", "გადატანა მოლოდინში"] : ["acc", "ჯგუფი"], kind: c ? null : "group", ref: m.id });
       left--;
     }
   });
   p.individual.filter(r => r.date >= t && (r.status === "ახალი" || r.status === "დადასტურებული")).forEach(r => {
-    items.push({ date: r.date, time: r.time, title: "ინდივიდუალური ვარჯიში", sub: `${r.people} ადამიანი · ${r.price} ₾`,
-      chip: r.status === "ახალი" ? ["wait", "დასადასტურებელი"] : ["ok", "დადასტურებული"] });
+    items.push({ date: r.date, time: r.time, title: "ინდივიდუალური ვარჯიში", sub: `${r.people} ადამიანი · ${r.price} ₾` + (r.note ? ` · ${r.note}` : ""),
+      chip: r.status === "ახალი" ? ["wait", "დასადასტურებელი"] : ["ok", "დადასტურებული"], kind: "individual", ref: r.id });
   });
   return items.sort((a, b) => (a.date + a.time < b.date + b.time ? -1 : 1)).slice(0, 8);
 }
 
+let cabItems = [];
 function renderCabinet() {
   const p = profile;
   $("cabName").innerHTML = `გამარჯობა, <em>${esc(p.name.split(" ")[0])}</em>`;
   $("cabPhone").textContent = fmtPhone(p.phone);
   const paid = p.memberships.filter(m => !m.pending);
-  const remaining = paid.reduce((s, m) => s + m.remaining, 0);
+  const remaining = paid.reduce((s, m) => s + m.remaining, 0), bought = paid.reduce((s, m) => s + m.purchased, 0);
+  const marked = p.stats.attended + p.stats.missed;
+  cabItems = upcomingItems(p);
+  const next = cabItems.find(it => !it.off);
   $("cabStats").innerHTML = `
-    <div class="stat hl"><b>${p.stats.attended}</b><span>ჩატარებული ვარჯიში სულ</span></div>
-    <div class="stat"><b>${p.stats.month}</b><span>ამ თვეში</span></div>
-    <div class="stat${paid.length && remaining <= 1 ? " warn" : ""}"><b>${paid.length ? remaining : "—"}${paid.length ? "<small> / " + paid.reduce((s, m) => s + m.purchased, 0) + "</small>" : ""}</b><span>აბონემენტში დარჩენილი</span></div>`;
+    <div class="stat hl"><b>${p.stats.attended}</b><span>ვარჯიშზე იყავი${p.stats.month ? ` · ამ თვეში ${p.stats.month}` : ""}</span></div>
+    <div class="stat"><b>${marked ? Math.round(p.stats.attended / marked * 100) + "<small>%</small>" : "—"}</b><span>დასწრება${p.stats.missed ? ` · ${p.stats.missed} გაცდენა` : ""}</span></div>
+    <div class="stat${paid.length && remaining <= 2 ? " warn" : ""}"><b>${paid.length ? remaining : "—"}${paid.length ? "<small> / " + bought + "</small>" : ""}</b><span>აბონემენტში დარჩენილი</span></div>
+    <div class="stat"><b class="nx">${next ? `${dayWord(next.date)}<br>${next.time}` : "—"}</b><span>შემდეგი ვარჯიში</span></div>`;
 
-  const up = upcomingItems(p);
-  $("cabUpcoming").innerHTML = up.length ? up.map((it, i) => {
+  $("cabUpcoming").innerHTML = cabItems.length ? cabItems.map((it, i) => {
     const d = parseYmd(it.date);
-    return `<div class="up${i === 0 ? " next" : ""}">
+    return `<div class="up${it === next ? " next" : ""}${it.off ? " off" : ""}">
       <div class="datebox"><b>${d.getDate()}</b><span>${MON[d.getMonth()]}</span></div>
-      <div class="what"><b>${esc(it.title)}</b><span>${WD[d.getDay()]}, ${it.time} · ${esc(it.sub)}</span></div>
+      <div class="what"><b>${esc(it.title)}</b><span>${WD[d.getDay()]}, ${it.time} · ${esc(it.sub)}</span>
+        ${it.kind ? `<div class="acts"><button type="button" data-chg="${i}" data-a="cancel">გაუქმება</button><button type="button" data-chg="${i}" data-a="reschedule">გადატანა</button></div>` : ""}</div>
       <span class="chip ${it.chip[0]}">${it.chip[1]}</span>
     </div>`;
   }).join("") : `<p class="empty">დაგეგმილი ვარჯიში არ გაქვს. <a href="#groups">ჩაეწერე ჯგუფში</a> ან <a href="#individual">დაჯავშნე ინდივიდუალური</a>.</p>`;
 
-  $("cabPasses").innerHTML = p.memberships.length ? p.memberships.map(m => {
+  const passes = p.memberships.map(m => {
     if (m.pending) return `<div class="pass">
       <div class="ttl"><b>${esc(m.label)}</b><span class="chip wait">გადახდის მოლოდინში</span></div>
       <div class="hint" style="font-size:13px">ადგილი დაჯავშნილია. გადარიცხე ${GROUP_PRICE} ₾ და როგორც კი ჩარიცხვას დავადასტურებ, ჩაირიცხები კურსზე.</div>
       ${payHtml(purposeFor(p.name, m.group))}
     </div>`;
-    const cells = Math.max(m.purchased, PASS);
+    const pct = m.purchased ? Math.min(100, Math.round(m.used / m.purchased * 100)) : 0, low = m.remaining <= 2;
     return `<div class="pass">
-      <div class="ttl"><b>${esc(m.label)}</b><span class="chip acc">${m.remaining} დარჩა</span></div>
-      <div class="track" style="grid-template-columns:repeat(${Math.min(cells, 8)},1fr)">${Array.from({ length: cells }, (_, i) => `<i class="${i < m.used ? "used" : ""}"></i>`).join("")}</div>
-      <div class="nums"><span>გამოყენებული ${m.used} / ${m.purchased}</span><span>${m.since ? "წევრი " + niceDate(m.since).split(",")[0] + "-დან" : ""}</span></div>
-      ${m.remaining === 0 ? `<div class="alert">აბონემენტი ამოიწურა. განსაახლებლად დამიკავშირდი.</div>` : m.remaining <= 2 ? `<div class="alert">აბონემენტი მალე მთავრდება.</div>` : ""}
+      <div class="ttl"><b>${esc(m.label)}</b><span class="chip ${m.remaining === 0 ? "no" : low ? "wait" : "acc"}">${m.remaining} დარჩა</span></div>
+      <div class="used-txt"><b>${m.used} / ${m.purchased}</b> ვარჯიში გამოყენებულია</div>
+      <div class="pbar${low ? " low" : ""}" role="progressbar" aria-valuemin="0" aria-valuemax="${m.purchased}" aria-valuenow="${m.used}" aria-label="აბონემენტის პროგრესი"><i style="width:${pct}%"></i></div>
+      <div class="nums"><span>${pct}%</span><span>${m.since ? "წევრი " + niceDate(m.since).split(",")[0] + "-დან" : ""}</span></div>
+      ${m.renew ? `<div class="renew"><b>გაგრძელების მოთხოვნა გაგზავნილია ✓</b><span class="hint" style="font-size:13px">გადარიცხე ${GROUP_PRICE} ₾ და ჩარიცხვის დადასტურების შემდეგ აბონემენტს დაემატება ${PASS} ვარჯიში.</span>${payHtml(purposeFor(p.name, m.group) + " · გაგრძელება")}</div>`
+        : low ? `<div class="renew"><b>${m.remaining === 0 ? "აბონემენტი ამოიწურა" : `დარჩა ${m.remaining} ვარჯიში`}</b><span class="hint" style="font-size:13px">გააგრძელე და იგივე ჯგუფში ადგილი შეგინარჩუნდება: ${GROUP_PRICE} ₾ = ${PASS} ვარჯიში.</span><button class="btn btn-primary btn-sm" type="button" data-renew="${esc(m.id)}">აბონემენტის გაგრძელება</button></div>` : ""}
     </div>`;
-  }).join("") : `<p class="empty">ჯგუფური აბონემენტი არ გაქვს. 400 ₾ = 8 ვარჯიში. <a href="#groups">აირჩიე ჯგუფი</a></p>`;
+  }).join("");
+  const waits = (p.waitlist || []).map(w => `<div class="wrow"><span>მოლოდინის სიაში: <b>${esc(w.label)}</b></span><button class="btn btn-ghost btn-sm" type="button" data-leave="${esc(w.id)}">გამოსვლა</button></div>`).join("");
+  $("cabPasses").innerHTML = passes || waits ? passes + waits : `<p class="empty">ჯგუფური აბონემენტი არ გაქვს. 400 ₾ = 8 ვარჯიში. <a href="#groups">აირჩიე ჯგუფი</a></p>`;
 
   $("cabHistory").innerHTML = p.history.length ? `<div class="tbl-wrap"><table class="hist">
     <thead><tr><th>თარიღი</th><th>ვარჯიში</th><th>სტატუსი</th></tr></thead>
@@ -1019,6 +1225,86 @@ function renderCabinet() {
   </table></div>` : `<p class="empty">ჩატარებული ვარჯიშები აქ გამოჩნდება, როცა ტრენერი დასწრებას მონიშნავს.</p>`;
   say($("cabErr"), "");
 }
+async function cabAction(btn, body) {
+  btn.disabled = true;
+  try {
+    const res = await api({ ...body, token: sToken });
+    if (res.ok) { profile = res.profile; keep("gv_p", profile); renderCabinet(); renderSchedule(); }
+    else { afterAuthFail(res); say($("cabErr"), errText(res.error), "err"); btn.disabled = false; }
+  } catch (e) { say($("cabErr"), errText(), "err"); btn.disabled = false; }
+}
+$("cabPasses").addEventListener("click", e => {
+  const r = e.target.closest("[data-renew]"), l = e.target.closest("[data-leave]");
+  if (r) cabAction(r, { action: "renew", member: r.dataset.renew });
+  if (l) cabAction(l, { action: "waitlist_leave", id: l.dataset.leave });
+});
+
+/* ---------- Cancel / reschedule ---------- */
+const chgDlg = $("chgDlg");
+let chgItem = null;
+$("chgTime").innerHTML = Array.from({ length: 15 }, (_, i) => `<option>${pad(i + 8)}:00</option>`).join("");
+function groupSlotsAhead(skipDate) {
+  // მომდევნო 14 დღის ჯგუფური ვარჯიშები, სადაც ადგილია
+  const out = [];
+  for (let i = 0, d = todayStr(); i < 14; i++, d = addDays(d, 1)) {
+    Object.values(GROUPS).forEach(g => {
+      if (!g.days.includes(parseYmd(d).getDay()) || d === skipDate) return;
+      if (d === todayStr() && g.time <= nowHM()) return;
+      if (counts && (counts[g.id] || 0) >= CAPACITY) return;
+      out.push({ d, t: g.time });
+    });
+  }
+  return out.sort((a, b) => (a.d + a.t < b.d + b.t ? -1 : 1));
+}
+function chgSync() {
+  const move = $("chgMove").checked, grp = chgItem.kind === "group";
+  $("chgNew").hidden = !move;
+  $("chgInd").hidden = grp; $("chgGrp").hidden = !grp;
+  const hours = (new Date(chgItem.date + "T" + chgItem.time) - new Date()) / 36e5;
+  $("chgNote").textContent = (move
+    ? (grp ? "გადატანას დავადასტურებ და კაბინეტში გამოჩნდება." : "ახალ დროს დავადასტურებ და დაგიკავშირდები.")
+    : (grp ? "ეს ვარჯიში აბონემენტიდან არ ჩამოგეჭრება." : "ჯავშანი გაუქმდება და მეც მომივა შეტყობინება."))
+    + (hours < 24 ? " ვარჯიშამდე 24 საათზე ნაკლებია, სასურველია WhatsApp-შიც მომწერო." : "");
+  $("chgBtn").textContent = move ? "გადატანის მოთხოვნა" : "ვარჯიშის გაუქმება";
+}
+$("cabUpcoming").addEventListener("click", e => {
+  const b = e.target.closest("[data-chg]");
+  if (!b) return;
+  chgItem = cabItems[+b.dataset.chg];
+  $("chgWhat").textContent = chgItem.title;
+  $("chgWhen").textContent = `${niceDate(chgItem.date)}, ${chgItem.time}`;
+  (b.dataset.a === "cancel" ? $("chgCancel") : $("chgMove")).checked = true;
+  $("chgDate").min = todayStr(); $("chgDate").value = ""; $("chgTime").value = chgItem.time;
+  $("chgSlot").innerHTML = groupSlotsAhead(chgItem.date).map(x => `<option value="${x.d}|${x.t}">${niceDate(x.d)} · ${x.t}</option>`).join("") || `<option value="">თავისუფალი ჯგუფი ვერ მოიძებნა</option>`;
+  say($("chgMsg"), "");
+  $("chgBtn").disabled = false;
+  chgSync();
+  chgDlg.showModal();
+});
+$("chgSeg").addEventListener("change", chgSync);
+$("chgClose").addEventListener("click", () => chgDlg.close());
+chgDlg.addEventListener("click", e => { if (e.target === chgDlg) chgDlg.close(); });
+$("chgForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  const move = $("chgMove").checked, msg = $("chgMsg"), btn = $("chgBtn");
+  const body = { action: move ? "reschedule" : "cancel", kind: chgItem.kind, ref: chgItem.ref, date: chgItem.date, token: sToken };
+  if (move && chgItem.kind === "group") {
+    if (!$("chgSlot").value) return say(msg, "აირჩიე ჯგუფი.", "err");
+    [body.newDate, body.newTime] = $("chgSlot").value.split("|");
+  } else if (move) {
+    if (!$("chgDate").value) return say(msg, "აირჩიე ახალი დღე.", "err");
+    body.newDate = $("chgDate").value; body.newTime = $("chgTime").value;
+  }
+  btn.disabled = true;
+  try {
+    const res = await api(body);
+    if (res.ok) {
+      profile = res.profile; keep("gv_p", profile); renderCabinet(); renderSchedule();
+      chgDlg.close();
+      say($("cabErr"), move ? "გადატანის მოთხოვნა გაიგზავნა." : "ვარჯიში გაუქმდა.", "ok");
+    } else { afterAuthFail(res); say(msg, errText(res.error), "err"); btn.disabled = false; }
+  } catch (err) { say(msg, errText(), "err"); btn.disabled = false; }
+});
 
 /* ---------- Trainer ---------- */
 let trDate = todayStr(), trTab = "att", trDay = null, trMarks = {};
@@ -1069,6 +1355,8 @@ async function loadDay() {
     renderDay(res);
   } catch (e) { say($("trErr"), errText(), "err"); }
 }
+// იგივე ტექსტი, რაც Code.gs-ის შეხსენებაში
+const remindText = (name, date, time) => `გამარჯობა ${String(name || "").split(" ")[0]}! შეგახსენებ, ${date === todayStr() ? "დღეს" : date === addDays(todayStr(), 1) ? "ხვალ" : niceDate(date)} ${time}-ზე პადელის ვარჯიში გვაქვს. Padelbade Krtsanisi, გიორგი გურამიშვილის ქ. 7. თუ ვერ მოდიხარ, გააუქმე კაბინეტიდან ან მომწერე. Giviko`;
 function renderDay(res) {
   trDay = res; trMarks = {};
   res.sessions.forEach((s, i) => s.members.forEach(m => (trMarks[i + "|" + m.id] = m.mark || "")));
@@ -1076,11 +1364,15 @@ function renderDay(res) {
     <div class="card sess" data-i="${i}">
       <div class="sess-h"><b>${esc(s.time)}</b><span>${esc(s.label)}</span></div>
       ${s.members.length ? s.members.map(m => `
-        <div class="mem">
-          <div class="who"><b>${esc(m.name)}</b><span>${fmtPhone(m.phone)}${m.remaining != null ? ` · აბონემენტში დარჩა ${m.remaining}` : ""}</span></div>
-          <div class="toggle" data-key="${i}|${esc(m.id)}">
-            <button type="button" data-v="მოვიდა" class="${m.mark === "მოვიდა" ? "on-yes" : ""}">მოვიდა</button>
-            <button type="button" data-v="გააცდინა" class="${m.mark === "გააცდინა" ? "on-no" : ""}">გააცდინა</button>
+        <div class="mem${m.away ? " away" : ""}">
+          <div class="who"><b>${esc(m.name)}</b><span>${fmtPhone(m.phone)}${m.remaining != null ? ` · აბონემენტში დარჩა ${m.remaining}` : ""}</span>
+            ${m.note ? `<span class="chip ${m.away ? "no" : "wait"}" style="font-family:var(--body)">${esc(m.note)}</span>` : ""}</div>
+          <div class="acts">
+            ${m.away || trDate < todayStr() ? "" : `<a class="wa-link" href="${waLink("995" + m.phone, remindText(m.name, trDate, s.time))}" target="_blank" rel="noopener">WhatsApp შეხსენება</a>`}
+            <div class="toggle" data-key="${i}|${esc(m.id)}">
+              <button type="button" data-v="მოვიდა" class="${m.mark === "მოვიდა" ? "on-yes" : ""}">მოვიდა</button>
+              <button type="button" data-v="გააცდინა" class="${m.mark === "გააცდინა" ? "on-no" : ""}">გააცდინა</button>
+            </div>
           </div>
         </div>`).join("") + `<div class="sess-f"><span class="msg" data-msg></span><button class="btn btn-primary btn-sm" type="button" data-save>შენახვა</button></div>`
       : `<p class="empty">ამ ჯგუფში ჯერ არავინ არის.</p>`}
@@ -1112,18 +1404,30 @@ async function loadRequests() {
   try {
     const res = await api({ action: "admin_requests", token: aToken });
     if (!res.ok) return trFail(res);
-    renderRequests(res.requests);
+    renderRequests(res.requests, res.changes);
   } catch (e) { say($("trErr"), errText(), "err"); }
 }
-function renderRequests(list) {
-  const n = list.filter(r => r.status === "ახალი").length;
+function renderRequests(list, changes = []) {
+  const n = list.filter(r => r.status === "ახალი").length + changes.length;
   $("reqBadge").hidden = !n; $("reqBadge").textContent = n;
-  $("reqList").innerHTML = list.length ? list.map(r => `
+  const chHtml = changes.map(c => `
+    <div class="card req" data-cid="${esc(c.id)}">
+      <div class="req-h"><b>${esc(c.name)} · <span style="font-family:var(--mono);font-weight:500">${fmtPhone(c.phone)}</span></b>
+        <span class="chip wait">ჯგუფის გადატანა</span></div>
+      <div style="font-size:14px;color:var(--muted)">${esc(c.label)}</div>
+      <p class="note">${niceDate(c.date)}, ${esc(c.time)} → <b style="color:var(--ink)">${niceDate(c.newDate)}, ${esc(c.newTime)}</b></p>
+      <div class="req-f" style="grid-template-columns:1fr"><div class="btns">
+        <button class="btn btn-primary btn-sm" type="button" data-cact="დადასტურებული">დადასტურება</button>
+        <button class="btn btn-danger btn-sm" type="button" data-cact="უარყოფილი">უარყოფა</button>
+      </div></div>
+    </div>`).join("");
+  $("reqList").innerHTML = (list.length || changes.length) ? chHtml + list.map(r => `
     <div class="card req" data-id="${esc(r.id)}">
       <div class="req-h"><b>${esc(r.name)} · <span style="font-family:var(--mono);font-weight:500">${fmtPhone(r.phone)}</span></b>
         <span class="chip ${r.status === "ახალი" ? "wait" : "ok"}">${esc(r.status)}</span></div>
       <div style="font-size:14px;color:var(--muted)">${r.people} ადამიანი · ${r.price} ₾</div>
       ${r.experience ? `<p class="note">სათამაშო გამოცდილება: <span class="chip acc">${esc(r.experience)}</span></p>` : ""}
+      ${r.note ? `<p class="note"><span class="chip wait">${esc(r.note)}</span></p>` : ""}
       <div class="req-f">
         <div class="field"><label for="rd-${esc(r.id)}">დღე</label><input type="date" id="rd-${esc(r.id)}" value="${esc(r.date)}"></div>
         <div class="field"><label for="rt-${esc(r.id)}">დრო</label><input type="time" step="1800" id="rt-${esc(r.id)}" value="${esc(r.time)}"></div>
@@ -1135,6 +1439,16 @@ function renderRequests(list) {
     </div>`).join("") : `<p class="empty">ახალი მოთხოვნები არ არის.</p>`;
 }
 $("reqList").addEventListener("click", async e => {
+  const cb = e.target.closest("[data-cact]");
+  if (cb) {
+    cb.disabled = true;
+    try {
+      const res = await api({ action: "admin_change", token: aToken, id: cb.closest(".req").dataset.cid, status: cb.dataset.cact });
+      if (!res.ok) { cb.disabled = false; return trFail(res); }
+      renderRequests(res.requests, res.changes);
+    } catch (err) { cb.disabled = false; say($("trErr"), errText(), "err"); }
+    return;
+  }
   const b = e.target.closest("[data-act]");
   if (!b) return;
   const card = b.closest(".req"), id = card.dataset.id;
@@ -1146,7 +1460,7 @@ $("reqList").addEventListener("click", async e => {
   try {
     const res = await api(body);
     if (!res.ok) { b.disabled = false; return trFail(res); }
-    renderRequests(res.requests);
+    renderRequests(res.requests, res.changes);
   } catch (err) { b.disabled = false; say($("trErr"), errText(), "err"); }
 });
 
@@ -1156,16 +1470,18 @@ async function loadMembers() {
   try {
     const res = await api({ action: "admin_members", token: aToken });
     if (!res.ok) return trFail(res);
-    renderMembers(res.members, res.reserved);
+    renderMembers(res.members, res.reserved, res.waitlist);
   } catch (e) { say($("trErr"), errText(), "err"); }
 }
-function renderMembers(list, reserved = {}) {
-  const np = list.filter(m => m.pending).length;
+function renderMembers(list, reserved = {}, waitlist = []) {
+  const np = list.filter(m => m.pending || m.renew).length;
   $("payBadge").hidden = !np; $("payBadge").textContent = np;
   list = list.slice().sort((a, b) => (b.pending ? 1 : 0) - (a.pending ? 1 : 0));
   const by = {};
   list.forEach(m => (by[m.group] = by[m.group] || []).push(m));
-  const groups = Object.keys(GROUPS).filter(g => by[g] || reserved[g]);
+  const wby = {};
+  waitlist.forEach(w => (wby[w.group] = wby[w.group] || []).push(w));
+  const groups = Object.keys(GROUPS).filter(g => by[g] || reserved[g] || wby[g]);
   if (!groups.length) { $("memList").innerHTML = `<p class="empty">ჯგუფებში ჯერ არავინ არის ჩაწერილი.</p>`; return; }
   $("memList").innerHTML = groups.map(g => {
     const ms = by[g] || [], r = reserved[g] || 0, total = ms.length + r;
@@ -1181,10 +1497,18 @@ function renderMembers(list, reserved = {}) {
       </div>
     </div>` : `<div class="mrow" data-id="${esc(m.id)}">
       <div><b>${esc(m.name)}</b> <span class="hint" style="font-family:var(--mono)">${fmtPhone(m.phone)}</span></div>
-      <span class="chip ${m.remaining === 0 ? "no" : m.remaining <= 2 ? "wait" : "acc"}">დარჩა ${m.remaining} / ${m.purchased}</span>
+      <span class="chip ${m.remaining === 0 ? "no" : m.remaining <= 2 ? "wait" : "acc"}">${m.renew ? "ითხოვს გაგრძელებას · " : ""}დარჩა ${m.remaining} / ${m.purchased}</span>
       <div class="acts">
         <button class="btn btn-ghost btn-sm" type="button" data-act="renew">+8 განახლება</button>
         <button class="btn btn-danger btn-sm" type="button" data-act="remove">ამოშლა</button>
+      </div>
+    </div>`).join("")}
+    ${(wby[g] || []).map((w, k) => `<div class="mrow" data-wid="${esc(w.id)}">
+      <div><b>${esc(w.name)}</b> <span class="hint" style="font-family:var(--mono)">${fmtPhone(w.phone)}</span></div>
+      <span class="chip">მოლოდინში · ${k + 1}</span>
+      <div class="acts">
+        <a class="wa-link" href="${waLink("995" + w.phone, `გამარჯობა ${w.name.split(" ")[0]}! ${GROUPS[g].label} ჯგუფში ადგილი გათავისუფლდა. თუ ისევ გინდა, შედი საიტზე და დაჯავშნე. Giviko`)}" target="_blank" rel="noopener">WhatsApp</a>
+        <button class="btn btn-danger btn-sm" type="button" data-act="unwait">ამოშლა</button>
       </div>
     </div>`).join("")}`;
   }).join("");
@@ -1192,16 +1516,17 @@ function renderMembers(list, reserved = {}) {
 $("memList").addEventListener("click", async e => {
   const b = e.target.closest("[data-act]");
   if (!b) return;
-  const id = b.closest(".mrow").dataset.id;
+  const row = b.closest(".mrow"), id = row.dataset.id;
   if (!b.dataset.sure) { b.dataset.sure = "1"; b.textContent = b.dataset.act === "renew" ? "დაადასტურე +8" : b.dataset.act === "pay" ? "დიახ, ჩაირიცხა 400 ₾" : "დარწმუნებული ხარ?"; return; }
   b.disabled = true;
   try {
-    const res = await api(b.dataset.act === "renew"
+    const res = await api(b.dataset.act === "unwait" ? { action: "admin_waitlist_remove", token: aToken, id: row.dataset.wid }
+      : b.dataset.act === "renew"
       ? { action: "admin_renew", token: aToken, member: id, add: PASS }
       : b.dataset.act === "pay" ? { action: "admin_confirm_payment", token: aToken, member: id }
       : { action: "admin_cancel_member", token: aToken, member: id });
     if (!res.ok) { b.disabled = false; return trFail(res); }
-    renderMembers(res.members, res.reserved);
+    renderMembers(res.members, res.reserved, res.waitlist);
     loadCounts();
   } catch (err) { b.disabled = false; say($("trErr"), errText(), "err"); }
 });
@@ -1239,7 +1564,7 @@ $("dbSearch").addEventListener("input", renderStudents);
 /* ================= DEMO BACKEND =================
    მუშაობს მხოლოდ მაშინ, როცა API_URL ცარიელია. მონაცემები მეხსიერებაშია. */
 // დემო: რეალური სურათი — ნინო (mw-19), მოსწავლე 2 (tt-20), მოსწავლე 3 (tt-21) + საიტის გარეშე დაკავებული
-const M = { students: [], groups: [], inds: [], att: [], seq: 100, reserved: { "mw-19": 0, "mw-20": 4, "mw-21": 4, "mw-22": 0, "tt-19": 4, "tt-20": 0, "tt-21": 2, "tt-22": 0, "ss-09": 0, "ss-10": 0, "ss-18": 4 } };
+const M = { students: [], groups: [], inds: [], att: [], wait: [], changes: [], seq: 100, reserved: { "mw-19": 0, "mw-20": 4, "mw-21": 4, "mw-22": 0, "tt-19": 4, "tt-20": 0, "tt-21": 2, "tt-22": 0, "ss-09": 0, "ss-10": 0, "ss-18": 4 } };
 function mockSeed() {
   const t = todayStr();
   const past = (days, n) => { const out = []; let d = addDays(t, -1); while (out.length < n) { if (days.includes(parseYmd(d).getDay())) out.push(d); d = addDays(d, -1); } return out.reverse(); };
@@ -1251,7 +1576,7 @@ function mockSeed() {
   M.groups.push(g1,
     { id: "G2", group: "tt-20", name: "დემო მოსწავლე 2", phone: "555000002", active: true, purchased: 8, created: addDays(t, -20) },
     { id: "G3", group: "tt-21", name: "დემო მოსწავლე 3", phone: "555000003", active: true, purchased: 8, created: addDays(t, -10) });
-  past([1, 3], 5).forEach((d, i) => M.att.push({ date: d, kind: "ჯგუფური", label: GROUPS["mw-19"].label, member: "G1", phone: "555000000", status: i === 2 ? "გააცდინა" : "მოვიდა" }));
+  past([1, 3], 6).forEach((d, i) => M.att.push({ date: d, kind: "ჯგუფური", label: GROUPS["mw-19"].label, member: "G1", phone: "555000000", status: i === 2 ? "გააცდინა" : "მოვიდა" }));
   M.inds.push({ id: "I1", people: 2, price: 180, date: addDays(t, 3), time: "18:00", name: "ნინო (დემო)", phone: "555000000", experience: "0-1 წელი", status: "დადასტურებული" },
     { id: "I2", people: 1, price: 140, date: addDays(t, 2), time: "12:00", name: "დემო მოსწავლე 4", phone: "555000004", experience: "სრულიად დამწყები", status: "ახალი" });
 }
@@ -1271,13 +1596,17 @@ function mockApi(d) {
     return s;
   };
   const admin = () => { if (d.token !== "a") fail("auth"); };
+  const wl = () => M.wait.filter(w => w.status === "active");
+  const pubChg = c => ({ ...c, label: (GROUPS[(M.groups.find(g => g.id === c.ref) || {}).group] || {}).label || "" });
   const prof = phone => {
     const s = M.students.find(x => x.phone === phone); if (!s) fail("auth");
     const att = M.att.filter(a => a.phone === phone), month = todayStr().slice(0, 7);
     return {
       name: s.name, phone,
-      memberships: M.groups.filter(g => g.phone === phone && g.active).map(g => ({ id: g.id, group: g.group, label: GROUPS[g.group].label, days: GROUPS[g.group].days, time: GROUPS[g.group].time, since: g.created, pending: !!g.pending, purchased: g.purchased, used: used(g.id), remaining: Math.max(0, g.purchased - used(g.id)) })),
+      memberships: M.groups.filter(g => g.phone === phone && g.active).map(g => ({ id: g.id, group: g.group, label: GROUPS[g.group].label, days: GROUPS[g.group].days, time: GROUPS[g.group].time, since: g.created, pending: !!g.pending, renew: !!g.renew, purchased: g.purchased, used: used(g.id), remaining: Math.max(0, g.purchased - used(g.id)) })),
       individual: M.inds.filter(r => r.phone === phone && r.status !== "გაუქმებული").map(r => ({ ...r })),
+      waitlist: wl().filter(w => w.phone === phone).map(w => ({ id: w.id, group: w.group, label: GROUPS[w.group].label })),
+      changes: M.changes.filter(c => c.phone === phone).map(c => ({ ...c })),
       history: att.slice().sort((a, b) => (a.date < b.date ? 1 : -1)).map(a => ({ date: a.date, kind: a.kind, label: a.label, status: a.status })),
       stats: { attended: att.filter(a => a.status === "მოვიდა").length, missed: att.filter(a => a.status === "გააცდინა").length, month: att.filter(a => a.status === "მოვიდა" && a.date.slice(0, 7) === month).length },
     };
@@ -1285,13 +1614,26 @@ function mockApi(d) {
   const day = () => {
     const wd = parseYmd(d.date).getDay(), mark = id => (M.att.find(a => a.date === d.date && a.member === id) || {}).status || "";
     const sessions = [];
-    Object.values(GROUPS).forEach(g => { if (g.days.includes(wd)) sessions.push({ kind: "group", ref: g.id, time: g.time, label: g.label, members: M.groups.filter(m => m.group === g.id && m.active && !m.pending).map(m => ({ id: m.id, name: m.name, phone: m.phone, remaining: Math.max(0, m.purchased - used(m.id)), mark: mark(m.id) })) }); });
+    const away = id => M.changes.find(c => c.ref === id && c.date === d.date && (c.action === "cancel" || c.status !== "უარყოფილი"));
+    Object.values(GROUPS).forEach(g => { if (g.days.includes(wd)) sessions.push({ kind: "group", ref: g.id, time: g.time, label: g.label, members: M.groups.filter(m => m.group === g.id && m.active && !m.pending).map(m => {
+      const c = away(m.id);
+      return { id: m.id, name: m.name, phone: m.phone, remaining: Math.max(0, m.purchased - used(m.id)), mark: mark(m.id), away: !!c && (c.action === "cancel" || c.status === "დადასტურებული"),
+        note: !c ? "" : c.action === "cancel" ? "გააფრთხილა: ვერ მოვა" : (c.status === "ახალი" ? "ითხოვს გადატანას: " : "გადატანილია: ") + c.newDate + " " + c.newTime };
+    }) }); });
+    M.changes.filter(c => c.action === "reschedule" && c.status === "დადასტურებული" && c.newDate === d.date).forEach(c => {
+      const m = M.groups.find(x => x.id === c.ref); if (!m) return;
+      const row = { id: m.id, name: m.name, phone: m.phone, remaining: Math.max(0, m.purchased - used(m.id)), mark: mark(m.id), note: "ანაზღაურება (" + c.date + "-ის ნაცვლად)" };
+      const s = sessions.find(x => x.kind === "group" && x.time === c.newTime);
+      if (s) s.members.push(row); else sessions.push({ kind: "makeup", ref: c.id, time: c.newTime, label: "ანაზღაურებითი ვარჯიში", members: [row] });
+    });
     M.inds.filter(r => r.date === d.date && r.status !== "გაუქმებული").forEach(r => sessions.push({ kind: "individual", ref: r.id, time: r.time, label: `ინდივიდუალური · ${r.people} ადამიანი · ${r.price} ₾`, members: [{ id: r.id, name: r.name, phone: r.phone, mark: mark(r.id) }] }));
     sessions.sort((a, b) => (a.time < b.time ? -1 : 1));
     return { ok: true, date: d.date, sessions };
   };
-  const reqs = () => ({ ok: true, requests: M.inds.filter(r => r.status === "ახალი" || (r.status === "დადასტურებული" && r.date >= todayStr())).sort((a, b) => (a.date + a.time < b.date + b.time ? -1 : 1)).map(r => ({ ...r })) });
-  const mems = () => ({ ok: true, members: M.groups.filter(g => g.active).map(g => ({ id: g.id, group: g.group, label: GROUPS[g.group].label, name: g.name, phone: g.phone, pending: !!g.pending, purchased: g.purchased, used: used(g.id), remaining: Math.max(0, g.purchased - used(g.id)) })), reserved: { ...M.reserved } });
+  const reqs = () => ({ ok: true, requests: M.inds.filter(r => r.status === "ახალი" || (r.status === "დადასტურებული" && r.date >= todayStr())).sort((a, b) => (a.date + a.time < b.date + b.time ? -1 : 1)).map(r => ({ ...r })),
+    changes: M.changes.filter(c => c.action === "reschedule" && c.status === "ახალი").map(pubChg) });
+  const mems = () => ({ ok: true, members: M.groups.filter(g => g.active).map(g => ({ id: g.id, group: g.group, label: GROUPS[g.group].label, name: g.name, phone: g.phone, pending: !!g.pending, renew: !!g.renew, purchased: g.purchased, used: used(g.id), remaining: Math.max(0, g.purchased - used(g.id)) })), reserved: { ...M.reserved },
+    waitlist: wl().map(w => ({ ...w })) });
   try {
     switch (d.action) {
       case "counts": return { ok: true, counts: cnt() };
@@ -1301,8 +1643,36 @@ function mockApi(d) {
         if (inG.some(x => x.phone === s.phone)) fail("already");
         if (inG.length + (M.reserved[g.id] || 0) >= CAPACITY) fail("full");
         M.groups.push({ id: "G" + ++M.seq, group: g.id, name: s.name, phone: s.phone, active: true, pending: true, purchased: PASS, created: todayStr() });
+        wl().filter(w => w.group === g.id && w.phone === s.phone).forEach(w => (w.status = "joined"));
         return { ok: true, counts: cnt(), token: "s:" + s.phone };
       }
+      case "waitlist": {
+        const s = who(), g = GROUPS[d.group]; if (!g) fail("invalid");
+        const inG = M.groups.filter(x => x.group === g.id && x.active);
+        if (inG.some(x => x.phone === s.phone)) fail("already");
+        if (inG.length + (M.reserved[g.id] || 0) < CAPACITY) fail("not_full");
+        if (wl().some(w => w.group === g.id && w.phone === s.phone)) fail("already_wait");
+        M.wait.push({ id: "W" + ++M.seq, group: g.id, name: s.name, phone: s.phone, status: "active", created: todayStr() });
+        return { ok: true, position: wl().filter(w => w.group === g.id).length, token: "s:" + s.phone };
+      }
+      case "waitlist_leave": { const s = who(), w = wl().find(x => x.id === d.id && x.phone === s.phone); if (!w) fail("invalid"); w.status = "left"; return { ok: true, profile: prof(s.phone) }; }
+      case "renew": { const s = who(), g = M.groups.find(x => x.id === d.member && x.phone === s.phone && x.active); if (!g) fail("invalid"); g.renew = true; return { ok: true, profile: prof(s.phone) }; }
+      case "cancel":
+      case "reschedule": {
+        const s = who(), moving = d.action === "reschedule";
+        if (moving && (!d.newDate || !d.newTime || d.newDate < todayStr())) fail("invalid");
+        if (d.kind === "individual") {
+          const r = M.inds.find(x => x.id === d.ref && x.phone === s.phone); if (!r) fail("invalid");
+          if (moving) { r.note = `გადატანა ${r.date} ${r.time}-დან`; r.date = d.newDate; r.time = d.newTime; r.status = "ახალი"; } else r.status = "გაუქმებული";
+        } else {
+          const g = M.groups.find(x => x.id === d.ref && x.phone === s.phone && x.active); if (!g) fail("invalid");
+          if (M.changes.some(c => c.ref === g.id && c.date === d.date && c.status !== "უარყოფილი")) fail("already_changed");
+          M.changes.push({ id: "C" + ++M.seq, kind: "group", ref: g.id, name: s.name, phone: s.phone, date: d.date, time: GROUPS[g.group].time, action: d.action, newDate: moving ? d.newDate : "", newTime: moving ? d.newTime : "", status: moving ? "ახალი" : "მიღებული" });
+        }
+        return { ok: true, profile: prof(s.phone) };
+      }
+      case "admin_change": { admin(); const c = M.changes.find(x => x.id === d.id); if (!c) fail("invalid"); c.status = d.status; return reqs(); }
+      case "admin_waitlist_remove": { admin(); const w = wl().find(x => x.id === d.id); if (!w) fail("invalid"); w.status = "removed"; return mems(); }
       case "individual": {
         if (!d.token) fail("login_required");
         if (!["სრულიად დამწყები", "0-1 წელი", "1+ წელი"].includes(d.experience)) fail("experience");
@@ -1354,7 +1724,7 @@ function mockApi(d) {
           remaining: mine.length ? mine.reduce((x, g) => x + Math.max(0, g.purchased - used(g.id)), 0) : null,
           attended: done.length, last: done[done.length - 1] || "", individual: M.inds.filter(r => r.phone === s.phone && r.status !== "გაუქმებული").length };
       }).sort((a, b) => (a.created < b.created ? 1 : -1)) };
-      case "admin_renew": { admin(); const g = M.groups.find(x => x.id === d.member); if (!g) fail("invalid"); g.purchased += d.add; return mems(); }
+      case "admin_renew": { admin(); const g = M.groups.find(x => x.id === d.member); if (!g) fail("invalid"); g.purchased += d.add; g.renew = false; return mems(); }
       case "admin_confirm_payment": { admin(); const g = M.groups.find(x => x.id === d.member); if (!g) fail("invalid"); g.pending = false; return mems(); }
       case "admin_cancel_member": { admin(); const g = M.groups.find(x => x.id === d.member); if (!g) fail("invalid"); g.active = false; return mems(); }
     }
@@ -1369,6 +1739,7 @@ if (DEMO) {
   // demo tokens from another (real) setup are meaningless here
   if (sToken && !sToken.startsWith("s:")) sToken = null;
   if (aToken && aToken !== "a") aToken = null;
+  counts = null; profile = null; // real data saved by the live site
 }
 $("yr").textContent = new Date().getFullYear();
 renderAccount();
