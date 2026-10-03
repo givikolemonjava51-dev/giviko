@@ -20,6 +20,9 @@ const DUR_PRICES = {
   90: { 1: 210, 2: 270, 3: 315, 4: 360 },
   120: { 1: 280, 2: 360, 3: 420, 4: 480 },
 };
+// სტატისტიკა: ტრენერის სუფთა მოგება ერთ ვარჯიშზე
+const PROFIT_IND_HOUR = 80;              // ინდივიდუალური, 1 საათზე (1.5 სთ = 120, 2 სთ = 160)
+const PROFIT_GROUP = { 3: 75, 4: 120 };  // ჯგუფი ადამიანების მიხედვით; 2 ან ნაკლები = 0
 const EXPERIENCE = ["სრულიად დამწყები", "0-1 წელი", "1+ წელი"];
 const SCHEDULE = [
   { key: "mw", label: "ორშაბათი-ოთხშაბათი", days: [1, 3], hours: ["19:00", "20:00", "21:00", "22:00"] },
@@ -44,6 +47,7 @@ const TABLES = {
   Reserved: ["group", "count"],
   Waitlist: ["id", "group", "name", "phone", "status", "created"],
   Changes: ["id", "kind", "ref", "name", "phone", "date", "time", "action", "newDate", "newTime", "status", "created"],
+  Feedback: ["date", "member", "phone", "name", "label", "text", "updated"],
 };
 // ცხრილების აღწერა: როცა იცვლება, ძველ ცხრილს ემატება ახალი ფურცლები და სვეტები
 const SCHEMA = Object.keys(TABLES).map(k => k + ":" + TABLES[k].length).join(",");
@@ -129,6 +133,8 @@ const hhmm_ = m => pad_(Math.floor(m / 60)) + ":" + pad_(m % 60);
 const dur_ = r => Number(r.duration) || 60; // ძველ ჩანაწერებში ხანგრძლივობა ცარიელია = 1 საათი
 const durText_ = m => (m / 60) + " სთ";
 const endTime_ = r => hhmm_(mins_(r.time) + dur_(r));
+const nextDay_ = s => { const [y, m, d] = s.split("-").map(Number); return new Date(Date.UTC(y, m - 1, d + 1)).toISOString().slice(0, 10); };
+const groupProfit_ = n => PROFIT_GROUP[Math.min(n, 4)] || 0;
 const weekday_ = s => { const [y, m, d] = s.split("-").map(Number); return new Date(Date.UTC(y, m - 1, d)).getUTCDay(); };
 
 function secret_() {
@@ -172,7 +178,7 @@ function json_(o) {
 }
 
 const WRITES = ["group", "individual", "register", "waitlist", "waitlist_leave", "renew", "cancel", "reschedule",
-  "admin_mark", "admin_update_request", "admin_renew", "admin_confirm_payment", "admin_cancel_member", "admin_change", "admin_waitlist_remove"];
+  "admin_mark", "admin_update_request", "admin_renew", "admin_confirm_payment", "admin_cancel_member", "admin_change", "admin_waitlist_remove", "admin_feedback"];
 
 // ხშირი წაკითხვები (განრიგი, კაბინეტი) ინახება ქეშში, რომ ცხრილი ყოველ ჯერზე არ გაიხსნას.
 // ნებისმიერი ჩაწერა ქეშს აახლებს; ცხრილში ხელით შეცვლილი ციფრი საიტზე მაქსიმუმ CACHE_SEC წამში ჩანს.
@@ -215,6 +221,7 @@ function route_(d, db) {
   const inds = () => db.all("Requests"), att = () => db.all("Attendance");
   const wl = () => db.all("Waitlist").filter(w => w.status === "active"), chg = () => db.all("Changes");
   const reserved = () => { const r = {}; db.all("Reserved").forEach(x => (r[x.group] = Number(x.count) || 0)); return r; };
+  const fbs = () => db.all("Feedback");
   const used = id => att().filter(a => a.member === id).length;
   const active = g => bool_(g.active);
   const cnt = () => {
@@ -256,6 +263,7 @@ function route_(d, db) {
       individual: inds().filter(r => r.phone === phone && r.status !== "გაუქმებული").map(pubReq_),
       waitlist: wl().filter(w => w.phone === phone && GROUPS[w.group]).map(w => ({ id: w.id, group: w.group, label: GROUPS[w.group].label })),
       changes: chg().filter(c => c.phone === phone).map(pubChg_),
+      feedback: fbs().filter(f => f.phone === phone && f.text).sort((a, b) => (a.date < b.date ? 1 : -1)).map(f => ({ date: f.date, label: f.label, text: f.text })),
       history: mine.slice().sort((a, b) => (a.date < b.date ? 1 : -1)).map(a => ({ date: a.date, kind: a.kind, label: a.label, status: a.status })),
       stats: {
         attended: mine.filter(a => a.status === "მოვიდა").length,
@@ -267,6 +275,7 @@ function route_(d, db) {
   const day = () => {
     if (!isDate_(d.date)) fail_("invalid");
     const wd = weekday_(d.date), mark = id => (att().find(a => a.date === d.date && a.member === id) || {}).status || "";
+    const fb = id => (fbs().find(f => f.date === d.date && f.member === id) || {}).text || "";
     const left = m => Math.max(0, (Number(m.purchased) || 0) - used(m.id));
     // მოსწავლემ გააფრთხილა, რომ ვერ მოვა, ან სხვა დღეზე გადაიტანა
     const away = id => chg().find(c => c.ref === id && c.date === d.date && (c.action === "cancel" || c.status !== "უარყოფილი"));
@@ -276,21 +285,21 @@ function route_(d, db) {
       sessions.push({ kind: "group", ref: g.id, time: g.time, label: g.label,
         members: groups().filter(m => m.group === g.id && active(m) && !bool_(m.pending)).map(m => {
           const c = away(m.id);
-          return { id: m.id, name: m.name, phone: m.phone, remaining: left(m), mark: mark(m.id), away: !!c && (c.action === "cancel" || c.status === "დადასტურებული"),
+          return { id: m.id, name: m.name, phone: m.phone, remaining: left(m), mark: mark(m.id), feedback: fb(m.id), away: !!c && (c.action === "cancel" || c.status === "დადასტურებული"),
             note: !c ? "" : c.action === "cancel" ? "გააფრთხილა: ვერ მოვა" : (c.status === "ახალი" ? "ითხოვს გადატანას: " : "გადატანილია: ") + c.newDate + " " + c.newTime };
         }) });
     });
     // ანაზღაურებითი ვარჯიშები: დადასტურებული გადატანა ამ დღეზე
     chg().filter(c => c.action === "reschedule" && c.status === "დადასტურებული" && c.newDate === d.date).forEach(c => {
       const m = groups().find(x => x.id === c.ref); if (!m) return;
-      const row = { id: m.id, name: m.name, phone: m.phone, remaining: left(m), mark: mark(m.id), note: "ანაზღაურება (" + c.date + "-ის ნაცვლად)" };
+      const row = { id: m.id, name: m.name, phone: m.phone, remaining: left(m), mark: mark(m.id), feedback: fb(m.id), note: "ანაზღაურება (" + c.date + "-ის ნაცვლად)" };
       const s = sessions.find(x => x.kind === "group" && x.time === c.newTime);
       if (s) s.members.push(row);
       else sessions.push({ kind: "makeup", ref: c.id, time: c.newTime, label: "ანაზღაურებითი ვარჯიში", members: [row] });
     });
     inds().filter(r => r.date === d.date && r.status !== "გაუქმებული").forEach(r => sessions.push({
       kind: "individual", ref: r.id, time: r.time, label: `ინდივიდუალური · ${r.time}-${endTime_(r)} · ${r.people} ადამიანი · ${r.price} ₾`,
-      members: [{ id: r.id, name: r.name, phone: r.phone, mark: mark(r.id) }] }));
+      members: [{ id: r.id, name: r.name, phone: r.phone, mark: mark(r.id), feedback: fb(r.id) }] }));
     sessions.sort((a, b) => (a.time < b.time ? -1 : 1));
     return { ok: true, date: d.date, sessions };
   };
@@ -308,6 +317,25 @@ function route_(d, db) {
   const seatFreed = gid => {
     const next = wl().filter(w => w.group === gid);
     if (next.length) notify_("ადგილი გათავისუფლდა", ["ჯგუფი: " + GROUPS[gid].label, "მოლოდინის სიაში " + next.length + " ადამიანია. პირველი:", next[0].name + " · " + next[0].phone]);
+  };
+  // სტატისტიკა: ჩატარებული ვარჯიშები from-დან to-მდე (ორივე ჩათვლით), საათები და სუფთა მოგება
+  const stats = () => {
+    if (!isDate_(d.from) || !isDate_(d.to) || d.from > d.to) fail_("invalid");
+    const now = Utilities.formatDate(new Date(), TZ, "yyyy-MM-dd HH:mm"), res = reserved(), out = [];
+    const over = (date, end) => date + " " + end <= now; // მხოლოდ დასრულებული ვარჯიშები
+    for (let date = d.from, n = 0; date <= d.to && n < 400; date = nextDay_(date), n++) {
+      const wd = weekday_(date);
+      Object.values(GROUPS).forEach(g => {
+        if (!g.days.includes(wd) || !over(date, hhmm_(mins_(g.time) + 60))) return;
+        // ჯგუფის ზომა: საიტის გარეშე დაკავებული (Reserved) + გადახდილი წევრები, ვინც ამ დღისთვის უკვე ჩაწერილი იყო
+        const people = (res[g.id] || 0) + groups().filter(m => m.group === g.id && active(m) && !bool_(m.pending) && m.created <= date).length;
+        if (people) out.push({ date, time: g.time, kind: "group", label: g.label, people, minutes: 60, income: groupProfit_(people) });
+      });
+    }
+    inds().filter(r => r.date >= d.from && r.date <= d.to && (r.status === "დადასტურებული" || r.status === "ჩატარდა") && over(r.date, endTime_(r)))
+      .forEach(r => out.push({ date: r.date, time: r.time, kind: "individual", label: "ინდივიდუალური · " + r.name, people: Number(r.people) || 1, minutes: dur_(r), income: PROFIT_IND_HOUR * dur_(r) / 60 }));
+    out.sort((a, b) => (a.date + a.time < b.date + b.time ? -1 : 1));
+    return { ok: true, from: d.from, to: d.to, sessions: out };
   };
   const member = () => { const g = groups().find(x => x.id === d.member); if (!g) fail_("invalid"); return g; };
 
@@ -454,6 +482,21 @@ function route_(d, db) {
       });
       return day();
     }
+
+    case "admin_feedback": {
+      admin();
+      if (!isDate_(d.date)) fail_("invalid");
+      const g = groups().find(x => x.id === d.member), r = inds().find(x => x.id === d.member), src = g || r;
+      if (!src) fail_("invalid");
+      const text = String(d.text || "").trim().slice(0, 1000), ex = fbs().find(f => f.date === d.date && f.member === d.member);
+      if (ex && !text) db.remove("Feedback", ex);
+      else if (ex) { ex.text = text; ex.updated = today_(); db.save("Feedback", ex); }
+      else if (text) db.add("Feedback", { date: d.date, member: d.member, phone: src.phone, name: src.name, text, updated: today_(),
+        label: g ? (GROUPS[g.group] || {}).label : `ინდივიდუალური · ${durText_(dur_(r))}` });
+      return { ok: true, member: d.member, feedback: text };
+    }
+
+    case "admin_stats": admin(); return stats();
 
     case "admin_requests": admin(); return reqs();
 
