@@ -1,0 +1,1382 @@
+<!doctype html>
+<html lang="ka">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Giviko — ვარჯიშები</title>
+<meta name="theme-color" content="#0B1418">
+<meta name="description" content="დაჯავშნე ინდივიდუალური ან ჯგუფური ვარჯიში Giviko-სთან.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+Georgian:wdth,wght@62.5..100,400..900&family=JetBrains+Mono:wght@500;700&display=swap">
+<style>
+/* Layout: three views (site, student cabinet, trainer panel) sharing one header; single dark turquoise look */
+:root {
+  --bg: #0B1418;
+  --surface: #13212A;
+  --surface-2: #182A35;
+  --ink: #E6F2F3;
+  --muted: #8FA6AD;
+  --line: #21343F;
+  --accent: #2EC4B6;
+  --accent-ink: #0B1418;
+  --accent-soft: #12302F;
+  --warn: #F2A541;
+  --full: #4A5F69;
+  --ok: #4ADE80;
+  --err: #F87171;
+  --display: "Noto Sans Georgian", system-ui, sans-serif;
+  --body: "Noto Sans Georgian", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } * { transition: none !important; } }
+body {
+  margin: 0; background: var(--bg); color: var(--ink);
+  font-family: var(--body); font-size: 16px; line-height: 1.6;
+  padding: env(safe-area-inset-top, 0px) 0 env(safe-area-inset-bottom, 0px);
+}
+.wrap { max-width: 1080px; margin: 0 auto; padding-inline: 20px; }
+h1, h2, h3 { font-family: var(--display); font-stretch: 62.5%; font-weight: 900; line-height: 1.05; margin: 0; text-wrap: balance; letter-spacing: 0.005em; }
+a { color: var(--accent); }
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; border-radius: 6px; }
+
+/* Header */
+.top { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 10; background: color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter: blur(8px); border-bottom: 1px solid var(--line); }
+.top .wrap { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-block: 12px; }
+.logo { font-family: var(--display); font-stretch: 62.5%; font-weight: 900; font-size: 26px; color: var(--ink); text-decoration: none; letter-spacing: 0.02em; }
+.logo span { color: var(--accent); }
+.top-right { display: flex; align-items: center; gap: 18px; }
+.nav { display: flex; gap: 18px; flex-wrap: wrap; }
+.nav a { color: var(--muted); text-decoration: none; font-size: 14px; font-weight: 600; }
+.nav a:hover { color: var(--ink); }
+.acct { padding: 8px 14px; font-size: 14px; }
+.acct .ini { width: 22px; height: 22px; border-radius: 50%; background: var(--accent-ink); color: var(--accent); display: inline-grid; place-items: center; font-size: 12px; font-weight: 900; }
+
+/* Hero */
+.hero { padding-block: 56px 40px; display: grid; grid-template-columns: 1.3fr 1fr; gap: 40px; align-items: end; }
+.hero h1 { font-size: clamp(48px, 9vw, 104px); text-transform: uppercase; }
+.hero h1 em { font-style: normal; color: var(--accent); display: block; }
+.hero p { color: var(--muted); max-width: 42ch; margin: 0 0 20px; font-size: 17px; }
+.cta { display: flex; gap: 10px; flex-wrap: wrap; }
+.btn {
+  appearance: none; border: 0; cursor: pointer; font: inherit; font-weight: 700; font-size: 15px;
+  padding: 12px 20px; border-radius: 10px; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  transition: transform .12s ease, background .12s ease, border-color .12s ease;
+}
+.btn:active { transform: translateY(1px); }
+.btn-primary { background: var(--accent); color: var(--accent-ink); }
+.btn-primary:hover { background: color-mix(in srgb, var(--accent) 85%, white); }
+.btn-ghost { background: transparent; color: var(--ink); border: 1.5px solid var(--line); }
+.btn-ghost:hover { border-color: var(--muted); }
+.btn-danger { background: transparent; color: var(--err); border: 1.5px solid color-mix(in srgb, var(--err) 40%, transparent); }
+.btn-sm { padding: 7px 12px; font-size: 13px; border-radius: 8px; }
+.btn[disabled] { background: var(--line); color: var(--full); cursor: not-allowed; border-color: transparent; }
+
+/* Sections */
+section { padding-block: 32px; }
+.sec-head { display: flex; justify-content: space-between; align-items: end; gap: 16px; flex-wrap: wrap; margin-bottom: 24px; }
+.sec-head h2 { font-size: clamp(34px, 5vw, 52px); text-transform: uppercase; }
+.sec-head p { color: var(--muted); margin: 0; max-width: 48ch; }
+.label { font-family: var(--mono); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+
+/* Prices */
+.prices { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; }
+.pcard, .prices .sub { padding: 18px 20px; }
+.ptiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 12px; }
+.ptile { display: grid; gap: 2px; padding: 12px; background: var(--bg); border: 1px solid var(--line); border-radius: 12px; font-variant-numeric: tabular-nums; }
+.ptile .people { margin: 0 0 4px; }
+.ptile .people i { width: 7px; height: 12px; }
+.ptile .pn { font-size: 13px; color: var(--muted); }
+.ptile b { font-family: var(--display); font-stretch: 62.5%; font-weight: 900; font-size: 26px; line-height: 1.1; white-space: nowrap; }
+.ptile .pp { font-size: 12px; color: var(--muted); white-space: nowrap; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 24px; min-width: 0; }
+.price-table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.price-table th { text-align: left; font-weight: 500; }
+.price-table th, .price-table td { padding: 12px 0; border-bottom: 1px solid var(--line); }
+.price-table tr:last-child td, .price-table tr:last-child th { border-bottom: 0; }
+.price-table .amt { font-family: var(--display); font-stretch: 62.5%; font-weight: 900; font-size: 28px; text-align: right; white-space: nowrap; }
+.price-table .per { color: var(--muted); font-size: 14px; text-align: right; padding-left: 16px; white-space: nowrap; }
+.people { display: inline-flex; gap: 3px; margin-right: 10px; vertical-align: -2px; }
+.people i { width: 9px; height: 16px; border-radius: 5px 5px 2px 2px; background: var(--accent); display: block; }
+.sub { background: var(--accent); color: var(--accent-ink); border-color: transparent; display: flex; flex-direction: column; gap: 6px; }
+.sub .label { color: inherit; opacity: .8; }
+.sub .big { font-family: var(--display); font-stretch: 62.5%; font-weight: 900; font-size: 52px; line-height: 1; }
+.sub .big small { font-size: 26px; }
+.sub p { margin: 0; opacity: .9; font-size: 14px; }
+.sub .math { font-family: var(--mono); font-size: 12px; opacity: .85; margin-top: auto; }
+
+/* Schedule */
+.legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: 13px; color: var(--muted); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.daypick { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.dayb { appearance: none; font: inherit; color: var(--ink); text-align: left; cursor: pointer; background: var(--surface); border: 1.5px solid var(--line); border-radius: 14px; padding: 18px 20px; display: grid; gap: 6px; transition: border-color .12s ease, background .12s ease; }
+.dayb:hover { border-color: var(--muted); }
+.dayb[aria-expanded="true"] { border-color: var(--accent); background: var(--accent-soft); }
+.dayb b { font-family: var(--display); font-stretch: 62.5%; font-weight: 900; font-size: 24px; line-height: 1.1; text-transform: uppercase; }
+.dayb .meta { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); }
+.dayb .meta .free { color: var(--accent); font-weight: 700; }
+.dayb .meta .none { color: var(--full); font-weight: 700; }
+.dayb .arr { font-size: 18px; color: var(--muted); transition: transform .15s ease; }
+.dayb[aria-expanded="true"] .arr { transform: rotate(180deg); color: var(--accent); }
+.daypanel { grid-column: 1 / -1; order: 99; margin-top: 4px; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 6px 22px 10px; scroll-margin-top: 90px; }
+.daypanel .slot:last-child { border-bottom: 0; }
+.pick-hint { margin-top: 16px; color: var(--muted); font-size: 14px; }
+.slot { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 14px; padding: 14px 0; border-bottom: 1px solid var(--line); }
+.slot .time { font-family: var(--mono); font-weight: 700; font-size: 15px; font-variant-numeric: tabular-nums; }
+.slot .time small { display: block; font-weight: 500; color: var(--muted); font-size: 12px; }
+.seats { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.dots { display: flex; gap: 4px; }
+.dots i { width: 14px; height: 14px; border-radius: 50%; border: 1.5px solid var(--accent); display: block; }
+.dots i.on { background: var(--accent); }
+.slot.is-full .dots i { border-color: var(--full); background: var(--full); }
+.seats .txt { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.seats .txt.few { color: var(--warn); font-weight: 600; }
+.slot .btn { padding: 8px 14px; font-size: 14px; }
+.slot.loading .dots i { border-color: var(--line); background: var(--line); }
+.slot.mine .txt { color: var(--accent); font-weight: 600; }
+
+/* Forms */
+.ind { display: grid; grid-template-columns: 1fr 1.4fr; gap: 20px; align-items: start; }
+.ind ul { margin: 0; padding-left: 18px; color: var(--muted); }
+.ind ul li + li { margin-top: 6px; }
+form { display: grid; gap: 16px; }
+.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.field { display: grid; gap: 6px; min-width: 0; }
+.field label, .field legend { font-size: 14px; font-weight: 600; }
+.hint { font-size: 12px; color: var(--muted); }
+input, select, textarea {
+  font: inherit; color: var(--ink); background: var(--bg); border: 1.5px solid var(--line); border-radius: 10px;
+  padding: 11px 12px; width: 100%; min-width: 0;
+}
+input:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent); }
+input[type="date"], input[type="time"] { cursor: pointer; }
+input.pin { font-family: var(--mono); letter-spacing: 0.5em; }
+textarea { resize: vertical; min-height: 72px; }
+fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
+.seg { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 6px; position: relative; }
+.seg input { position: absolute; left: 0; top: 0; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.seg label { display: grid; gap: 2px; text-align: center; padding: 10px 6px; border: 1.5px solid var(--line); border-radius: 10px; cursor: pointer; background: var(--bg); }
+.seg label b { font-family: var(--display); font-stretch: 62.5%; font-weight: 900; font-size: 22px; line-height: 1.1; }
+.seg label span { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.seg3 { grid-template-columns: repeat(3, 1fr); }
+.seg label b.t { font-family: var(--body); font-stretch: 100%; font-weight: 700; font-size: 14px; line-height: 1.3; padding-block: 4px; }
+.seg input:checked + label { border-color: var(--accent); background: var(--accent-soft); }
+.seg input:focus-visible + label { outline: 3px solid var(--accent); outline-offset: 2px; }
+.total { display: flex; justify-content: space-between; align-items: baseline; padding-top: 14px; border-top: 1px dashed var(--line); }
+.total b { font-family: var(--display); font-stretch: 62.5%; font-weight: 900; font-size: 32px; }
+.msg { font-size: 14px; margin: 0; }
+.msg:empty { display: none; }
+.msg.ok { color: var(--ok); } .msg.err { color: var(--err); }
+.paystep { display: grid; gap: 8px; font-size: 14px; }
+.paystep > b { font-size: 16px; }
+.paystep > span { color: var(--muted); }
+.pay { display: grid; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: var(--bg); }
+.pay-row { display: grid; grid-template-columns: 84px 1fr auto; gap: 10px; align-items: center; padding: 10px 12px; font-size: 14px; min-width: 0; }
+.pay-row + .pay-row { border-top: 1px solid var(--line); }
+.pay-row > span { color: var(--muted); font-size: 12px; }
+.pay-row b, .pay-row code { min-width: 0; overflow-wrap: anywhere; }
+.pay-row code { font-family: var(--mono); font-size: 13px; font-weight: 700; color: var(--accent); }
+.pay-row.amt b { font-family: var(--display); font-stretch: 62.5%; font-weight: 900; font-size: 22px; }
+.copy { appearance: none; border: 1px solid var(--line); background: var(--surface); color: var(--ink); font: inherit; font-size: 12px; font-weight: 700; padding: 5px 10px; border-radius: 8px; cursor: pointer; white-space: nowrap; }
+.copy:hover { border-color: var(--accent); }
+.copy.done { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 40%, transparent); }
+.gate { display: grid; gap: 8px; padding: 16px; border: 1.5px dashed color-mix(in srgb, var(--accent) 50%, transparent); border-radius: 12px; background: var(--accent-soft); font-size: 14px; }
+.gate b { font-size: 16px; }
+.gate span { color: var(--muted); }
+.db-tools { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-bottom: 16px; }
+.db-tools input { max-width: 320px; }
+.db-tools .count { color: var(--muted); font-size: 14px; }
+table.db td .chip { margin: 2px 4px 2px 0; }
+.as-user { display: flex; align-items: center; gap: 10px; padding: 12px 14px; background: var(--accent-soft); border-radius: 10px; font-size: 14px; }
+
+/* Dialog */
+dialog { border: 1px solid var(--line); padding: 0; border-radius: 18px; background: var(--surface); color: var(--ink); width: min(440px, calc(100vw - 32px)); box-shadow: 0 24px 60px rgba(0, 0, 0, .55); }
+dialog::backdrop { background: rgba(2, 8, 10, .7); }
+.dlg { padding: 24px; display: grid; gap: 16px; }
+.dlg h3 { font-size: 30px; text-transform: uppercase; }
+.dlg .meta { display: flex; justify-content: space-between; gap: 12px; padding: 12px 14px; background: var(--accent-soft); border-radius: 10px; font-size: 14px; }
+.dlg .actions { display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap; }
+
+/* Cabinet */
+.page-head { padding-block: 40px 8px; display: flex; justify-content: space-between; align-items: end; gap: 16px; flex-wrap: wrap; }
+.page-head h1 { font-size: clamp(40px, 7vw, 72px); text-transform: uppercase; }
+.page-head h1 em { font-style: normal; color: var(--accent); }
+.page-head .sub-line { color: var(--muted); font-family: var(--mono); font-size: 14px; margin-top: 8px; }
+.stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; margin-block: 24px; }
+.stat { background: var(--surface); padding: 20px 22px; display: grid; gap: 4px; }
+.stat b { font-family: var(--display); font-stretch: 62.5%; font-weight: 900; font-size: 56px; line-height: 1; font-variant-numeric: tabular-nums; }
+.stat b small { font-size: 24px; color: var(--muted); }
+.stat span { font-size: 14px; color: var(--muted); }
+.stat.hl b { color: var(--accent); }
+.stat.warn b { color: var(--warn); }
+.cab-grid { display: grid; grid-template-columns: 1.3fr 1fr; gap: 20px; align-items: start; }
+.cab-grid h2, .panel-h { font-size: 28px; text-transform: uppercase; margin-bottom: 14px; }
+.up { display: grid; grid-template-columns: 56px 1fr auto; gap: 14px; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--line); }
+.up:last-child { border-bottom: 0; }
+.datebox { text-align: center; border: 1.5px solid var(--line); border-radius: 10px; padding: 6px 0; line-height: 1.1; }
+.datebox b { display: block; font-family: var(--display); font-stretch: 62.5%; font-weight: 900; font-size: 24px; }
+.datebox span { font-size: 11px; color: var(--muted); }
+.up.next .datebox { border-color: var(--accent); background: var(--accent-soft); }
+.up .what { min-width: 0; }
+.up .what b { display: block; font-size: 15px; }
+.up .what span { font-size: 13px; color: var(--muted); }
+.chip { display: inline-block; font-size: 12px; font-weight: 700; padding: 3px 9px; border-radius: 999px; white-space: nowrap; background: var(--surface-2); color: var(--muted); border: 1px solid var(--line); }
+.chip.ok { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 35%, transparent); }
+.chip.no { color: var(--err); border-color: color-mix(in srgb, var(--err) 35%, transparent); }
+.chip.wait { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 35%, transparent); }
+.chip.acc { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 40%, transparent); }
+.pass { display: grid; gap: 12px; }
+.pass + .pass { margin-top: 18px; padding-top: 18px; border-top: 1px solid var(--line); }
+.pass .ttl { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+.track { display: grid; grid-template-columns: repeat(8, 1fr); gap: 5px; }
+.track i { height: 26px; border-radius: 6px; border: 1.5px solid var(--accent); display: block; }
+.track i.used { background: var(--accent); }
+.track i.miss { background: repeating-linear-gradient(135deg, var(--full) 0 4px, transparent 4px 8px); border-color: var(--full); }
+.pass .nums { display: flex; justify-content: space-between; font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.pass .alert { font-size: 13px; color: var(--warn); }
+.empty { color: var(--muted); font-size: 14px; padding: 8px 0; }
+.tbl-wrap { overflow-x: auto; }
+table.hist { width: 100%; border-collapse: collapse; font-size: 14px; font-variant-numeric: tabular-nums; }
+table.hist th { text-align: left; font-weight: 600; color: var(--muted); font-size: 12px; padding: 8px 10px 8px 0; border-bottom: 1px solid var(--line); }
+table.hist td { padding: 10px 10px 10px 0; border-bottom: 1px solid var(--line); }
+table.hist td.d { font-family: var(--mono); white-space: nowrap; }
+
+/* Trainer */
+.tabs { display: flex; gap: 6px; border-bottom: 1px solid var(--line); margin-block: 20px 24px; overflow-x: auto; }
+.tabs button { appearance: none; background: none; border: 0; border-bottom: 2px solid transparent; color: var(--muted); font: inherit; font-weight: 700; padding: 10px 14px; cursor: pointer; white-space: nowrap; }
+.tabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); }
+.tabs .badge { background: var(--warn); color: var(--accent-ink); border-radius: 999px; font-size: 11px; padding: 1px 7px; margin-left: 4px; }
+.daynav { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 20px; }
+.daynav input { width: auto; }
+.daynav .wd { font-weight: 700; margin-left: 6px; }
+.sessions { display: grid; gap: 16px; }
+.sess { padding: 18px 20px; }
+.sess-h { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 8px; }
+.sess-h b { font-family: var(--mono); font-size: 18px; }
+.sess-h span { color: var(--muted); font-size: 14px; }
+.mem { display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: center; padding: 10px 0; border-top: 1px solid var(--line); }
+.mem .who { min-width: 0; }
+.mem .who b { display: block; font-size: 15px; }
+.mem .who span { font-size: 13px; color: var(--muted); font-family: var(--mono); }
+.toggle { display: inline-flex; border: 1.5px solid var(--line); border-radius: 10px; overflow: hidden; }
+.toggle button { appearance: none; border: 0; background: transparent; color: var(--muted); font: inherit; font-size: 13px; font-weight: 700; padding: 7px 12px; cursor: pointer; }
+.toggle button + button { border-left: 1.5px solid var(--line); }
+.toggle button.on-yes { background: color-mix(in srgb, var(--ok) 22%, transparent); color: var(--ok); }
+.toggle button.on-no { background: color-mix(in srgb, var(--err) 20%, transparent); color: var(--err); }
+.sess-f { display: flex; justify-content: flex-end; align-items: center; gap: 12px; margin-top: 12px; flex-wrap: wrap; }
+.req { display: grid; gap: 12px; padding: 18px 20px; }
+.req-h { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; align-items: baseline; }
+.req-h b { font-size: 16px; }
+.req .note { font-size: 14px; color: var(--muted); margin: 0; }
+.req-f { display: grid; grid-template-columns: 1fr 1fr auto; gap: 10px; align-items: end; }
+.req-f .btns { display: flex; gap: 8px; }
+.mlist h3 { font-size: 20px; text-transform: uppercase; margin: 18px 0 4px; }
+.mrow { display: grid; grid-template-columns: 1fr auto auto; gap: 12px; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.mrow .left { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.mrow .acts { display: flex; gap: 6px; }
+
+.auth-tabs { margin: 0 0 4px; }
+.auth-tabs button { flex: 1; font-size: 17px; }
+#loginDlg .dlg { position: relative; padding-top: 40px; }
+.x { position: absolute; top: 8px; right: 10px; appearance: none; background: none; border: 0; color: var(--muted); font-size: 26px; line-height: 1; cursor: pointer; padding: 4px 8px; border-radius: 8px; }
+.x:hover { color: var(--ink); }
+.switch { text-align: center; margin: 0; font-size: 14px; }
+.demo { background: var(--accent-soft); color: var(--ink); font-size: 13px; text-align: center; padding: 8px 16px; }
+.demo b { font-family: var(--mono); }
+footer { border-top: 1px solid var(--line); margin-top: 48px; }
+footer .wrap { padding-block: 24px; display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; color: var(--muted); font-size: 14px; }
+footer a { color: var(--muted); }
+
+@media (max-width: 860px) {
+  .hero, .prices, .ind, .cab-grid { grid-template-columns: 1fr; }
+  .daypick { grid-template-columns: 1fr; }
+  .daypanel { order: var(--o, 99); margin-top: 0; }
+  .hero { padding-block: 36px 16px; }
+  .req-f { grid-template-columns: 1fr 1fr; }
+  .req-f .btns { grid-column: 1 / -1; }
+}
+@media (max-width: 560px) {
+  .nav { display: none; }
+  .row2 { grid-template-columns: 1fr; }
+  .wrap { padding-inline: 16px; }
+  .sub .big { font-size: 44px; }
+  .ptiles { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+  .ptile { padding: 10px; }
+  .ptile b { font-size: 22px; }
+  .price-table .per { display: none; }
+  .price-table .amt { font-size: 24px; }
+  .stats { grid-template-columns: 1fr 1fr; }
+  .stats .stat:first-child { grid-column: 1 / -1; }
+  .stat b { font-size: 44px; }
+  .mem { grid-template-columns: 1fr; }
+  .mrow { grid-template-columns: 1fr auto; }
+  .mrow .acts { grid-column: 1 / -1; }
+}
+</style>
+</head>
+<body>
+
+<div class="demo" id="demoBar" hidden>დემო რეჟიმი: სერვერი არ არის მიერთებული. მოსწავლე: <b>555 00 00 00</b> / PIN <b>1234</b> · ტრენერი: პაროლი <b>demo</b></div>
+
+<header class="top">
+  <div class="wrap">
+    <a class="logo" href="#">GIVIKO<span>.</span></a>
+    <div class="top-right">
+      <nav class="nav">
+        <a href="#prices">ფასები</a>
+        <a href="#groups">ჯგუფები</a>
+        <a href="#individual">ინდივიდუალური</a>
+      </nav>
+      <button class="btn btn-ghost acct" id="acctBtn" type="button">შესვლა</button>
+    </div>
+  </div>
+</header>
+
+<!-- ================= SITE ================= -->
+<main class="wrap" id="viewHome">
+  <div class="hero">
+    <h1>ივარჯიშე <em>Giviko-სთან</em></h1>
+    <div>
+      <p>ინდივიდუალური ვარჯიში ერთიდან ოთხ ადამიანამდე ან ჯგუფური ვარჯიში კვირაში ორჯერ. აირჩიე დრო, დარეგისტრირდი და ადევნე თვალი შენს ვარჯიშებს პირად კაბინეტში.</p>
+      <div class="cta">
+        <a class="btn btn-primary" href="#groups">ჯგუფში ჩაწერა</a>
+        <a class="btn btn-ghost" href="#individual">ინდივიდუალური</a>
+      </div>
+    </div>
+  </div>
+
+  <section id="prices">
+    <div class="sec-head"><h2>ფასები</h2></div>
+    <div class="prices">
+      <div class="card pcard">
+        <div class="label">ინდივიდუალური · 1 საათი</div>
+        <div class="ptiles" id="priceRows"></div>
+      </div>
+      <div class="card sub">
+        <div class="label">ჯგუფური აბონემენტი</div>
+        <div class="big">400<small> ₾</small></div>
+        <p>8 გაკვეთილი · კვირაში 2-ჯერ · მაქს. 4 ადამიანი</p>
+        <div class="math">= 50 ₾ ერთი ვარჯიში</div>
+      </div>
+    </div>
+  </section>
+
+  <section id="groups">
+    <div class="sec-head">
+      <h2>ჯგუფური განრიგი</h2>
+      <div class="legend">
+        <span><span class="dots"><i class="on"></i></span> დაკავებული</span>
+        <span><span class="dots"><i></i></span> თავისუფალი</span>
+      </div>
+    </div>
+    <div class="days" id="days"></div>
+    <p class="msg err" id="loadErr" hidden>განრიგი ვერ ჩაიტვირთა. შეამოწმე ინტერნეტი და განაახლე გვერდი.</p>
+  </section>
+
+  <section id="individual">
+    <div class="sec-head"><h2>ინდივიდუალური ვარჯიში</h2></div>
+    <div class="ind">
+      <div>
+        <p style="margin-top:0">აირჩიე რამდენი ადამიანი ივარჯიშებს და სასურველი დრო. დაგიკავშირდები ტელეფონით და დავადასტურებთ.</p>
+        <ul>
+          <li>ვარჯიში გრძელდება 1 საათი</li>
+          <li>ფასი ფიქსირებულია ჯგუფზე, არა ადამიანზე</li>
+          <li>დადასტურებული ვარჯიში გამოჩნდება შენს კაბინეტში</li>
+        </ul>
+      </div>
+      <form class="card" id="indForm" novalidate>
+        <fieldset>
+          <legend>რამდენი ადამიანი</legend>
+          <div class="seg" id="seg"></div>
+        </fieldset>
+        <div class="row2">
+          <div class="field">
+            <label for="indDate">სასურველი დღე</label>
+            <input type="date" id="indDate" required>
+          </div>
+          <div class="field">
+            <label for="indTime">სასურველი დრო</label>
+            <select id="indTime" required></select>
+          </div>
+        </div>
+        <div class="as-user" data-member-only hidden></div>
+        <div class="gate" data-guest-only>
+          <b>ჯერ დარეგისტრირდი</b>
+          <span>ინდივიდუალურ ვარჯიშზე ჩასაწერად საჭიროა ანგარიში. რეგისტრაციას 20 წამი სჭირდება: სახელი, ნომერი და PIN.</span>
+          <div class="cta">
+            <button class="btn btn-primary btn-sm" type="button" data-auth="register">რეგისტრაცია</button>
+            <button class="btn btn-ghost btn-sm" type="button" data-auth="login">უკვე მაქვს ანგარიში</button>
+          </div>
+        </div>
+        <fieldset>
+          <legend>სათამაშო გამოცდილება</legend>
+          <div class="seg seg3" id="expSeg">
+            <input type="radio" name="exp" id="exp0" value="სრულიად დამწყები"><label for="exp0"><b class="t">სრულიად დამწყები</b></label>
+            <input type="radio" name="exp" id="exp1" value="0-1 წელი"><label for="exp1"><b class="t">0-1 წელი</b></label>
+            <input type="radio" name="exp" id="exp2" value="1+ წელი"><label for="exp2"><b class="t">1+ წელი</b></label>
+          </div>
+        </fieldset>
+        <div class="total"><span>სულ გადასახდელი</span><b id="indTotal">140 ₾</b></div>
+        <button class="btn btn-primary" type="submit" id="indBtn">მოთხოვნის გაგზავნა</button>
+        <p class="msg" id="indMsg" role="status"></p>
+      </form>
+    </div>
+  </section>
+</main>
+
+<!-- ================= STUDENT CABINET ================= -->
+<main class="wrap" id="viewCabinet" hidden>
+  <div class="page-head">
+    <div>
+      <div class="label">ჩემი კაბინეტი</div>
+      <h1 id="cabName">…</h1>
+      <div class="sub-line" id="cabPhone"></div>
+    </div>
+    <div class="cta">
+      <a class="btn btn-ghost btn-sm" href="#groups">ჯგუფში ჩაწერა</a>
+      <a class="btn btn-ghost btn-sm" href="#individual">ინდივიდუალური ჯავშანი</a>
+      <button class="btn btn-danger btn-sm" type="button" id="logoutBtn">გასვლა</button>
+    </div>
+  </div>
+  <div class="stats" id="cabStats"></div>
+  <div class="cab-grid">
+    <div class="card">
+      <h2>მომავალი ვარჯიშები</h2>
+      <div id="cabUpcoming"></div>
+    </div>
+    <div class="card">
+      <h2>აბონემენტი</h2>
+      <div id="cabPasses"></div>
+    </div>
+  </div>
+  <section>
+    <div class="card">
+      <h2 class="panel-h">ისტორია</h2>
+      <div id="cabHistory"></div>
+    </div>
+  </section>
+  <p class="msg err" id="cabErr"></p>
+</main>
+
+<!-- ================= TRAINER ================= -->
+<main class="wrap" id="viewTrainer" hidden>
+  <div id="trLogin" class="page-head" style="display:block">
+    <div class="label">ტრენერის პანელი</div>
+    <h1 style="margin-bottom:24px">შესვლა</h1>
+    <form class="card" id="trLoginForm" style="max-width:420px" novalidate>
+      <div class="field">
+        <label for="trPass">პაროლი</label>
+        <input id="trPass" type="password" autocomplete="current-password">
+      </div>
+      <button class="btn btn-primary" type="submit">შესვლა</button>
+      <p class="msg" id="trLoginMsg" role="status"></p>
+    </form>
+  </div>
+  <div id="trPanel" hidden>
+    <div class="page-head">
+      <div>
+        <div class="label">ტრენერის პანელი</div>
+        <h1>GIVIKO<em>.</em></h1>
+      </div>
+      <button class="btn btn-danger btn-sm" type="button" id="trLogout">გასვლა</button>
+    </div>
+    <div class="tabs" role="tablist">
+      <button role="tab" aria-selected="true" data-tab="att">დასწრება</button>
+      <button role="tab" aria-selected="false" data-tab="req">მოთხოვნები <span class="badge" id="reqBadge" hidden></span></button>
+      <button role="tab" aria-selected="false" data-tab="mem">ჯგუფები <span class="badge" id="payBadge" hidden></span></button>
+      <button role="tab" aria-selected="false" data-tab="db">რეგისტრირებულები</button>
+    </div>
+    <div data-pane="att">
+      <div class="daynav">
+        <button class="btn btn-ghost btn-sm" type="button" id="dPrev" aria-label="წინა დღე">‹</button>
+        <input type="date" id="dDate" aria-label="თარიღი">
+        <button class="btn btn-ghost btn-sm" type="button" id="dNext" aria-label="შემდეგი დღე">›</button>
+        <button class="btn btn-ghost btn-sm" type="button" id="dToday">დღეს</button>
+        <span class="wd" id="dWd"></span>
+      </div>
+      <div class="sessions" id="sessions"></div>
+    </div>
+    <div data-pane="req" hidden><div class="sessions" id="reqList"></div></div>
+    <div data-pane="mem" hidden><div class="card mlist" id="memList"></div></div>
+    <div data-pane="db" hidden>
+      <div class="db-tools">
+        <input id="dbSearch" type="search" placeholder="ძებნა: სახელი ან ნომერი" aria-label="ძებნა">
+        <span class="count" id="dbCount"></span>
+      </div>
+      <div class="card"><div class="tbl-wrap" id="dbList"></div></div>
+    </div>
+    <p class="msg err" id="trErr"></p>
+  </div>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>© <span id="yr"></span> Giviko · ჯგუფში მაქსიმუმ 4 ადამიანი</span>
+    <a href="#trainer">ტრენერის შესვლა</a>
+  </div>
+</footer>
+
+<!-- Group sign-up -->
+<dialog id="dlg">
+  <form class="dlg" id="grpForm" novalidate>
+    <h3>ჯგუფში ჩაწერა</h3>
+    <div class="meta"><span id="dlgGroup"></span><b id="dlgSeats"></b></div>
+    <div class="as-user" data-member-only data-pre-pay hidden></div>
+    <div class="field" data-guest-only data-pre-pay>
+      <label for="grpName">სახელი და გვარი</label>
+      <input id="grpName" autocomplete="name" maxlength="60">
+    </div>
+    <div class="field" data-guest-only data-pre-pay>
+      <label for="grpPhone">ტელეფონი</label>
+      <input id="grpPhone" type="tel" inputmode="tel" autocomplete="tel" placeholder="5XX XX XX XX" maxlength="30">
+    </div>
+    <div class="field" data-guest-only data-pre-pay>
+      <label for="grpPin">PIN კოდი კაბინეტისთვის</label>
+      <input id="grpPin" class="pin" inputmode="numeric" autocomplete="off" maxlength="4" placeholder="••••">
+      <span class="hint">მოიფიქრე 4 ციფრი. უკვე გაქვს ანგარიში? შეიყვანე შენი PIN.</span>
+    </div>
+    <div class="paystep">
+      <b id="payTitle">გადახდა ანგარიშზე</b>
+      <span id="payText">ჩასაწერად გადარიცხე 400 ₾ ამ ანგარიშზე. ადგილი შენთვის დაიჯავშნება და როგორც კი ჩარიცხვას დავადასტურებ, ჩაირიცხები კურსზე.</span>
+      <div id="payBox"></div>
+    </div>
+    <p class="msg" id="grpMsg" role="status"></p>
+    <div class="actions">
+      <button class="btn btn-ghost" type="button" id="dlgClose">დახურვა</button>
+      <button class="btn btn-primary" type="submit" id="grpBtn">ადგილის დაჯავშნა</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- Student login / sign-up -->
+<dialog id="loginDlg">
+  <form class="dlg" id="loginForm" novalidate>
+    <button type="button" class="x" id="lgClose" aria-label="დახურვა">×</button>
+    <div class="tabs auth-tabs" role="tablist">
+      <button type="button" role="tab" aria-selected="true" data-mode="login">შესვლა</button>
+      <button type="button" role="tab" aria-selected="false" data-mode="register">რეგისტრაცია</button>
+    </div>
+    <div class="field" data-reg-only hidden>
+      <label for="lgName">სახელი და გვარი</label>
+      <input id="lgName" autocomplete="name" maxlength="60">
+    </div>
+    <div class="field">
+      <label for="lgPhone">ტელეფონი</label>
+      <input id="lgPhone" type="tel" inputmode="tel" autocomplete="tel" placeholder="5XX XX XX XX" maxlength="30">
+    </div>
+    <div class="field">
+      <label for="lgPin" id="lgPinLabel">PIN</label>
+      <input id="lgPin" class="pin" inputmode="numeric" autocomplete="current-password" maxlength="4" placeholder="••••">
+      <span class="hint" id="lgHint">დაგავიწყდა PIN? დამიკავშირდი და განვაახლებ.</span>
+    </div>
+    <p class="msg" id="lgMsg" role="status"></p>
+    <button class="btn btn-primary" type="submit" id="lgBtn">შესვლა</button>
+    <p class="hint switch" id="lgSwitch">პირველად ხარ? <a href="#" data-to="register">დარეგისტრირდი</a></p>
+  </form>
+</dialog>
+
+<script>
+/* ====== პარამეტრები ======
+   ჩასვით აქ Google Apps Script-ის Web App ბმული (…/exec).
+   ცარიელი რომ დატოვოთ, საიტი დემო რეჟიმში იმუშავებს. */
+const API_URL = "";
+
+/* ⚠ ჩაწერეთ თქვენი საბანკო რეკვიზიტები */
+const BANK = {
+  iban: "GE62TB7243645064300033",   // ანგარიშის ნომერი (IBAN)
+  name: "გივი ლემონჯავა",           // მიმღების სახელი და გვარი
+  bank: "თიბისი ბანკი",             // ბანკი
+};
+const GROUP_PRICE = 400;
+
+const CAPACITY = 4;
+const PASS = 8;
+const PRICES = { 1: 140, 2: 180, 3: 210, 4: 240 };
+const SCHEDULE = [
+  { key: "mw", title: "ორშაბათი · ოთხშაბათი", label: "ორშაბათი-ოთხშაბათი", sub: "საღამოს ჯგუფები", days: [1, 3], hours: ["19:00", "20:00", "21:00", "22:00"] },
+  { key: "tt", title: "სამშაბათი · ხუთშაბათი", label: "სამშაბათი-ხუთშაბათი", sub: "საღამოს ჯგუფები", days: [2, 4], hours: ["19:00", "20:00", "21:00", "22:00"] },
+  { key: "ss", title: "შაბათი · კვირა", label: "შაბათი-კვირა", sub: "დილის და საღამოს ჯგუფები", days: [6, 0], hours: ["09:00", "10:00", "18:00"] },
+];
+const WD = ["კვირა", "ორშაბათი", "სამშაბათი", "ოთხშაბათი", "ხუთშაბათი", "პარასკევი", "შაბათი"];
+const MON = ["იან", "თებ", "მარ", "აპრ", "მაი", "ივნ", "ივლ", "აგვ", "სექ", "ოქტ", "ნოე", "დეკ"];
+
+const $ = id => document.getElementById(id);
+const pad = n => String(n).padStart(2, "0");
+const endOf = h => pad((+h.slice(0, 2) + 1) % 24) + ":00";
+const gid = (day, h) => day.key + "-" + h.slice(0, 2);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const ymd = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+const parseYmd = s => { const [y, m, d] = s.split("-").map(Number); return new Date(y, m - 1, d); };
+const addDays = (s, n) => { const d = parseYmd(s); d.setDate(d.getDate() + n); return ymd(d); };
+const todayStr = () => ymd(new Date());
+const fmtPhone = p => String(p).replace(/^(\d{3})(\d{2})(\d{2})(\d{2})$/, "$1 $2 $3 $4");
+const niceDate = s => { const d = parseYmd(s); return `${d.getDate()} ${MON[d.getMonth()]}, ${WD[d.getDay()]}`; };
+
+const GROUPS = {};
+SCHEDULE.forEach(day => day.hours.forEach(h => {
+  GROUPS[gid(day, h)] = { id: gid(day, h), days: day.days, time: h, label: `${day.label} ${h}-${endOf(h)}` };
+}));
+
+/* ---------- Session ---------- */
+const store = {
+  get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
+  set(k, v) { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch (e) {} },
+};
+let sToken = store.get("gv_s");
+let aToken = store.get("gv_a");
+let profile = null;
+
+/* ---------- API ---------- */
+const DEMO = !API_URL;
+async function apiGet() {
+  if (DEMO) return mockApi({ action: "counts" });
+  const r = await fetch(API_URL);
+  return r.json();
+}
+async function api(body) {
+  if (DEMO) { await new Promise(r => setTimeout(r, 250)); return mockApi(body); }
+  const r = await fetch(API_URL, { method: "POST", body: JSON.stringify(body) });
+  return r.json();
+}
+const ERR = {
+  full: "ეს ჯგუფი უკვე სავსეა. აირჩიე სხვა დრო.",
+  already: "ამ ჯგუფში უკვე ჩაწერილი ხარ.",
+  invalid: "შეამოწმე სახელი და ტელეფონის ნომერი (9 ციფრი, 5-ით იწყება).",
+  pin_format: "PIN უნდა იყოს ზუსტად 4 ციფრი.",
+  pin_mismatch: "ამ ნომერზე ანგარიში უკვე არსებობს. შეიყვანე შენი PIN.",
+  pin_wrong: "ნომერი ან PIN არასწორია.",
+  no_account: "ამ ნომრით ჯერ არ ხარ დარეგისტრირებული.",
+  exists: "ამ ნომრით ანგარიში უკვე არსებობს. გადადი „შესვლაზე“ და შეიყვანე შენი PIN.",
+  locked: "ძალიან ბევრი მცდელობა. სცადე 15 წუთში.",
+  auth: "სესია ამოიწურა. შედი თავიდან.",
+  login_required: "ჯერ დარეგისტრირდი ან შედი ანგარიშზე.",
+  set_password: "ჯერ შეცვალე ტრენერის პაროლი Code.gs ფაილში.",
+  past: "აირჩიე დღევანდელი ან მომავალი თარიღი.",
+  experience: "აირჩიე სათამაშო გამოცდილება.",
+};
+const errText = e => ERR[e] || "ვერ გაიგზავნა. სცადე თავიდან ან დამიკავშირდი ტელეფონით.";
+function say(el, text, kind) { el.textContent = text || ""; el.className = "msg" + (kind ? " " + kind : ""); }
+
+/* ---------- Routing ---------- */
+function route() {
+  const h = location.hash.slice(1);
+  const view = h === "cabinet" ? "cabinet" : h === "trainer" ? "trainer" : "home";
+  if (view === "cabinet" && !sToken) { location.hash = ""; openLogin(); return; }
+  $("viewHome").hidden = view !== "home";
+  $("viewCabinet").hidden = view !== "cabinet";
+  $("viewTrainer").hidden = view !== "trainer";
+  if (view === "home" && h && $(h)) $(h).scrollIntoView();
+  if (view !== "home") window.scrollTo(0, 0);
+  if (view === "cabinet") loadProfile();
+  if (view === "trainer") trainerInit();
+}
+window.addEventListener("hashchange", route);
+
+/* ---------- Header / account ---------- */
+function renderAccount() {
+  const b = $("acctBtn");
+  if (sToken && profile) {
+    b.innerHTML = `<span class="ini">${esc(profile.name.trim()[0] || "?")}</span> ჩემი კაბინეტი`;
+    b.className = "btn btn-primary acct";
+  } else if (sToken) {
+    b.textContent = "ჩემი კაბინეტი"; b.className = "btn btn-primary acct";
+  } else {
+    b.textContent = "შესვლა"; b.className = "btn btn-ghost acct";
+  }
+  document.querySelectorAll("[data-guest-only]").forEach(el => (el.hidden = !!sToken));
+  document.querySelectorAll("[data-member-only]").forEach(el => {
+    el.hidden = !sToken;
+    el.textContent = profile ? `რეგისტრირდები როგორც ${profile.name} · ${fmtPhone(profile.phone)}` : "რეგისტრირდები შენი ანგარიშით";
+  });
+}
+$("acctBtn").addEventListener("click", () => { sToken ? (location.hash = "cabinet") : openLogin(); });
+
+function setStudent(token, prof) {
+  sToken = token; store.set("gv_s", token);
+  if (prof) profile = prof;
+  renderAccount();
+}
+function logout() {
+  sToken = null; profile = null; store.set("gv_s", null);
+  renderAccount(); location.hash = ""; renderSchedule();
+}
+$("logoutBtn").addEventListener("click", logout);
+
+/* ---------- Login / sign-up dialog ---------- */
+const loginDlg = $("loginDlg");
+let authMode = "login";
+function setMode(mode) {
+  authMode = mode;
+  const reg = mode === "register";
+  document.querySelectorAll(".auth-tabs button").forEach(b => b.setAttribute("aria-selected", b.dataset.mode === mode));
+  document.querySelectorAll("[data-reg-only]").forEach(el => (el.hidden = !reg));
+  $("lgPinLabel").textContent = reg ? "მოიფიქრე PIN (4 ციფრი)" : "PIN";
+  $("lgPin").autocomplete = reg ? "new-password" : "current-password";
+  $("lgHint").textContent = reg ? "ამ ნომრით და PIN-ით შეხვალ შემდეგში." : "დაგავიწყდა PIN? დამიკავშირდი და განვაახლებ.";
+  $("lgBtn").textContent = reg ? "რეგისტრაცია" : "შესვლა";
+  $("lgSwitch").innerHTML = reg ? 'უკვე გაქვს ანგარიში? <a href="#" data-to="login">შესვლა</a>' : 'პირველად ხარ? <a href="#" data-to="register">დარეგისტრირდი</a>';
+  say($("lgMsg"), "");
+  (reg && !$("lgName").value ? $("lgName") : !$("lgPhone").value ? $("lgPhone") : $("lgPin")).focus();
+}
+let stayAfterLogin = false;
+function openLogin(mode, stay) { stayAfterLogin = !!stay; loginDlg.showModal(); setMode(mode || "login"); }
+document.addEventListener("click", e => { const b = e.target.closest("[data-auth]"); if (b) openLogin(b.dataset.auth, true); });
+document.querySelectorAll(".auth-tabs button").forEach(b => b.addEventListener("click", () => setMode(b.dataset.mode)));
+$("lgSwitch").addEventListener("click", e => { const a = e.target.closest("[data-to]"); if (a) { e.preventDefault(); setMode(a.dataset.to); } });
+loginDlg.addEventListener("click", e => { if (e.target === loginDlg) loginDlg.close(); });
+$("lgClose").addEventListener("click", () => loginDlg.close());
+// PIN: მხოლოდ ციფრები
+document.querySelectorAll("input.pin").forEach(i => i.addEventListener("input", () => { i.value = i.value.replace(/\D/g, "").slice(0, 4); }));
+
+$("loginForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  const reg = authMode === "register", msg = $("lgMsg"), btn = $("lgBtn");
+  const phone = $("lgPhone").value, pin = $("lgPin").value, name = $("lgName").value;
+  if (reg && name.trim().length < 2) return say(msg, "შეიყვანე სახელი.", "err");
+  if (phone.replace(/\D/g, "").length < 9) return say(msg, "შეიყვანე ტელეფონის ნომერი (9 ციფრი).", "err");
+  if (!/^\d{4}$/.test(pin)) return say(msg, ERR.pin_format, "err");
+  btn.disabled = true;
+  try {
+    const res = await api(reg ? { action: "register", name, phone, pin } : { action: "login", phone, pin });
+    if (res.ok) {
+      setStudent(res.token, res.profile);
+      $("loginForm").reset(); loginDlg.close();
+      if (stayAfterLogin) { say($("indMsg"), "შესული ხარ! ახლა გააგზავნე მოთხოვნა.", "ok"); renderSchedule(); }
+      else location.hash = "cabinet";
+    } else if (res.error === "no_account") {
+      setMode("register");
+      say(msg, "ამ ნომრით ანგარიში ჯერ არ გაქვს. შეიყვანე სახელი და დარეგისტრირდი.", "err");
+    } else say(msg, errText(res.error), "err");
+  } catch (err) { say(msg, errText(), "err"); }
+  btn.disabled = false;
+});
+
+/* ---------- Prices ---------- */
+const peopleIcon = n => '<span class="people" aria-hidden="true">' + "<i></i>".repeat(n) + "</span>";
+$("priceRows").innerHTML = Object.entries(PRICES).map(([n, p]) =>
+  `<div class="ptile">${peopleIcon(+n)}<span class="pn">${n} ადამ.</span><b>${p} ₾</b><span class="pp">${Math.round(p / n)} ₾ / ადამ.</span></div>`).join("");
+
+/* ---------- Schedule ---------- */
+let counts = null;
+const daysEl = $("days");
+let selDay = null;
+function freeIn(day) { return day.hours.reduce((s, h) => s + Math.max(0, CAPACITY - (counts[gid(day, h)] || 0)), 0); }
+function renderSchedule() {
+  const mine = new Set((profile?.memberships || []).map(m => m.group));
+  const pend = new Set((profile?.memberships || []).filter(m => m.pending).map(m => m.group));
+  const sel = SCHEDULE.find(d => d.key === selDay);
+  const card = (day, i) => {
+    const free = counts ? freeIn(day) : null;
+    const info = free == null ? "იტვირთება…" : free ? `<span class="free">${free} თავისუფალი ადგილი</span>` : `<span class="none">ყველა ჯგუფი სავსეა</span>`;
+    return `<button type="button" class="dayb" style="order:${i * 2}" data-day="${day.key}" aria-expanded="${day.key === selDay}" aria-controls="dayPanel">
+      <b>${day.title}</b>
+      <span class="meta"><span>${day.hours.length} ჯგუფი · ${info}</span><span class="arr" aria-hidden="true">⌄</span></span>
+    </button>`;
+  };
+  const panel = sel ? `<div class="daypanel" id="dayPanel" style="--o:${SCHEDULE.indexOf(sel) * 2 + 1}"><div class="label" style="padding-top:14px">${sel.title} · აირჩიე დრო</div>${sel.hours.map(h => slotHtml(sel, h, mine, pend)).join("")}</div>` : "";
+  daysEl.innerHTML = `<div class="daypick">${SCHEDULE.map(card).join("")}${panel}</div>` +
+    (sel ? "" : `<p class="pick-hint">დააჭირე დღეებს და გამოჩნდება ჯგუფების დრო.</p>`);
+}
+function slotHtml(day, h, mine, pend = new Set()) {
+  const id = gid(day, h);
+  const time = `<div class="time">${h}<small>${endOf(h)}-მდე</small></div>`;
+  if (!counts) {
+    return `<div class="slot loading">${time}<div class="seats"><div class="dots">${"<i></i>".repeat(CAPACITY)}</div><span class="txt">იტვირთება…</span></div><button class="btn btn-primary" disabled>ჩაწერა</button></div>`;
+  }
+  const c = Math.min(counts[id] || 0, CAPACITY), free = CAPACITY - c, full = free <= 0, isMine = mine.has(id);
+  const txt = isMine ? (pend.has(id) ? "შენი ადგილი · გადახდის მოლოდინში" : "შენი ჯგუფი") : full ? "ჯგუფი სავსეა" : `${c} / ${CAPACITY} დაკავებული · ${free} თავისუფალი`;
+  return `<div class="slot${full ? " is-full" : ""}${isMine ? " mine" : ""}">${time}
+    <div class="seats">
+      <div class="dots" aria-hidden="true">${Array.from({ length: CAPACITY }, (_, i) => `<i class="${i < c ? "on" : ""}"></i>`).join("")}</div>
+      <span class="txt${free === 1 && !isMine ? " few" : ""}">${txt}</span>
+    </div>
+    ${isMine ? `<a class="btn btn-ghost" href="#cabinet">კაბინეტი</a>`
+      : `<button class="btn btn-primary" data-group="${id}" data-label="${day.title}, ${h}–${endOf(h)}" ${full ? "disabled" : ""}>${full ? "სავსეა" : "ჩაწერა"}</button>`}
+  </div>`;
+}
+async function loadCounts() {
+  try {
+    const res = await apiGet();
+    if (!res.ok) throw new Error();
+    counts = res.counts || {};
+    $("loadErr").hidden = true;
+  } catch (e) { $("loadErr").hidden = false; }
+  renderSchedule();
+}
+
+/* ---------- Date pickers: open on click anywhere in the field ---------- */
+document.addEventListener("click", e => {
+  const i = e.target.closest('input[type="date"], input[type="time"]');
+  if (!i || i.disabled || i.readOnly || typeof i.showPicker !== "function") return;
+  try { i.showPicker(); } catch (err) {}
+});
+
+/* ---------- Payment details ---------- */
+const fmtIban = s => String(s).replace(/\s+/g, "").replace(/(.{4})/g, "$1 ").trim();
+function payHtml(purpose) {
+  return `<div class="pay">
+    <div class="pay-row amt"><span>თანხა</span><b>${GROUP_PRICE} ₾</b><span></span></div>
+    <div class="pay-row"><span>ანგარიში</span><code>${esc(fmtIban(BANK.iban))}</code><button type="button" class="copy" data-copy="${esc(BANK.iban.replace(/\s+/g, ""))}">კოპირება</button></div>
+    <div class="pay-row"><span>მიმღები</span><b>${esc(BANK.name)}${BANK.bank ? ` · <span class="hint">${esc(BANK.bank)}</span>` : ""}</b><span></span></div>
+    <div class="pay-row"><span>დანიშნულება</span><b class="purpose">${esc(purpose)}</b><button type="button" class="copy" data-copy="${esc(purpose)}">კოპირება</button></div>
+  </div>`;
+}
+document.addEventListener("click", async e => {
+  const b = e.target.closest("button[data-copy]");
+  if (!b) return;
+  const text = b.dataset.copy;
+  try { await navigator.clipboard.writeText(text); }
+  catch (err) {
+    const r = document.createRange(), el = b.previousElementSibling;
+    r.selectNodeContents(el); const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r);
+    b.textContent = "მონიშნულია"; return;
+  }
+  b.textContent = "დაკოპირდა ✓"; b.classList.add("done");
+  setTimeout(() => { b.textContent = "კოპირება"; b.classList.remove("done"); }, 1800);
+});
+const shortGroup = id => { const g = GROUPS[id]; return g ? g.label.replace("ორშაბათი-ოთხშაბათი", "ორშ-ოთხ").replace("სამშაბათი-ხუთშაბათი", "სამ-ხუთ").replace("შაბათი-კვირა", "შაბ-კვ").replace(/-\d\d:00$/, "") : ""; };
+const purposeFor = (name, id) => `${(name || "").trim() || "შენი სახელი და გვარი"} · ${shortGroup(id)}`;
+function renderPay() {
+  const name = profile?.name || $("grpName").value;
+  $("payBox").innerHTML = payHtml(purposeFor(name, currentGroup));
+}
+$("grpName").addEventListener("input", renderPay);
+
+/* ---------- Group dialog ---------- */
+const dlg = $("dlg"), grpForm = $("grpForm"), grpMsg = $("grpMsg"), grpBtn = $("grpBtn");
+let currentGroup = null;
+daysEl.addEventListener("click", e => {
+  const d = e.target.closest("button[data-day]");
+  if (d) {
+    selDay = selDay === d.dataset.day ? null : d.dataset.day;
+    renderSchedule();
+    if (selDay && window.innerWidth < 860) $("dayPanel").scrollIntoView({ behavior: "smooth", block: "nearest" });
+    return;
+  }
+  const b = e.target.closest("button[data-group]");
+  if (!b || b.disabled) return;
+  currentGroup = b.dataset.group;
+  $("dlgGroup").textContent = b.dataset.label;
+  $("dlgSeats").textContent = `${CAPACITY - (counts[currentGroup] || 0)} ადგილი დარჩა`;
+  say(grpMsg, "");
+  grpBtn.hidden = false; grpBtn.disabled = false;
+  renderAccount();
+  $("payTitle").textContent = "გადახდა ანგარიშზე";
+  $("payText").textContent = `ჩასაწერად გადარიცხე ${GROUP_PRICE} ₾ ამ ანგარიშზე. ადგილი შენთვის დაიჯავშნება და როგორც კი ჩარიცხვას დავადასტურებ, ჩაირიცხები კურსზე.`;
+  renderPay();
+  dlg.showModal();
+  if (!sToken) $("grpName").focus();
+});
+$("dlgClose").addEventListener("click", () => dlg.close());
+dlg.addEventListener("click", e => { if (e.target === dlg) dlg.close(); });
+
+const guestFields = (n, p, pin) => sToken ? { token: sToken } : { name: $(n).value, phone: $(p).value, pin: $(pin).value };
+function guestCheck(n, p, pin) {
+  if (sToken) return null;
+  if ($(n).value.trim().length < 2 || $(p).value.replace(/\D/g, "").length < 9) return ERR.invalid;
+  if (!/^\d{4}$/.test($(pin).value)) return ERR.pin_format;
+  return null;
+}
+function afterAuthFail(res) { if (res.error === "auth") logout(); }
+
+grpForm.addEventListener("submit", async e => {
+  e.preventDefault();
+  const bad = guestCheck("grpName", "grpPhone", "grpPin");
+  if (bad) return say(grpMsg, bad, "err");
+  grpBtn.disabled = true; grpBtn.textContent = "იგზავნება…";
+  try {
+    const res = await api({ action: "group", group: currentGroup, ...guestFields("grpName", "grpPhone", "grpPin") });
+    if (res.counts) counts = res.counts;
+    if (res.ok) {
+      setStudent(res.token);
+      const typed = $("grpName").value;
+      grpForm.reset();
+      await refreshProfile();
+      grpForm.querySelectorAll("[data-pre-pay]").forEach(el => (el.hidden = true));
+      $("dlgSeats").textContent = "შენი ადგილი დაჯავშნილია";
+      $("payTitle").textContent = "ადგილი დაჯავშნილია ✓";
+      $("payText").textContent = `ახლა გადარიცხე ${GROUP_PRICE} ₾ ამ ანგარიშზე. როგორც კი ჩარიცხვას დავადასტურებ, ჩაირიცხები კურსზე. სტატუსს კაბინეტში ნახავ.`;
+      $("payBox").innerHTML = payHtml(purposeFor(profile?.name || typed, currentGroup));
+      grpBtn.hidden = true;
+    } else { afterAuthFail(res); say(grpMsg, errText(res.error), "err"); }
+    renderSchedule();
+  } catch (err) { say(grpMsg, errText(), "err"); }
+  grpBtn.disabled = false; grpBtn.textContent = "ადგილის დაჯავშნა";
+});
+
+/* ---------- Individual form ---------- */
+const seg = $("seg");
+seg.innerHTML = Object.entries(PRICES).map(([n, p]) =>
+  `<input type="radio" name="people" id="p${n}" value="${n}" ${n === "1" ? "checked" : ""}><label for="p${n}"><b>${n}</b><span>${p} ₾</span></label>`).join("");
+seg.addEventListener("change", () => { $("indTotal").textContent = PRICES[seg.querySelector("input:checked").value] + " ₾"; });
+const timeSel = $("indTime");
+timeSel.innerHTML = '<option value="">აირჩიე</option>' + Array.from({ length: 15 }, (_, i) => `<option>${pad(i + 8)}:00</option>`).join("");
+$("indDate").min = todayStr();
+
+$("indForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  const msg = $("indMsg"), btn = $("indBtn");
+  if (!$("indDate").value || !timeSel.value) return say(msg, "აირჩიე სასურველი დღე და დრო.", "err");
+  if (!document.querySelector('input[name="exp"]:checked')) return say(msg, "აირჩიე სათამაშო გამოცდილება.", "err");
+  if (!sToken) { openLogin("register", true); return say(msg, "ჯერ დარეგისტრირდი ან შედი ანგარიშზე.", "err"); }
+  btn.disabled = true; btn.textContent = "იგზავნება…";
+  try {
+    const res = await api({
+      action: "individual", people: +seg.querySelector("input:checked").value,
+      date: $("indDate").value, time: timeSel.value, experience: (document.querySelector('input[name="exp"]:checked') || {}).value,
+      token: sToken,
+    });
+    if (res.ok) {
+      setStudent(res.token);
+      $("indForm").reset(); $("p1").checked = true; $("indTotal").textContent = PRICES[1] + " ₾";
+      await refreshProfile();
+      say(msg, "მოთხოვნა მიღებულია! დაგიკავშირდები დროის დასადასტურებლად. სტატუსს კაბინეტში ნახავ.", "ok");
+    } else { afterAuthFail(res); say(msg, errText(res.error), "err"); }
+  } catch (err) { say(msg, errText(), "err"); }
+  btn.disabled = false; btn.textContent = "მოთხოვნის გაგზავნა";
+});
+
+/* ---------- Cabinet ---------- */
+async function refreshProfile() {
+  if (!sToken) return;
+  try {
+    const res = await api({ action: "me", token: sToken });
+    if (res.ok) { profile = res.profile; renderAccount(); renderSchedule(); }
+    else if (res.error === "auth") logout();
+  } catch (e) {}
+}
+async function loadProfile() {
+  if (profile) renderCabinet();
+  await refreshProfile();
+  if (profile) renderCabinet();
+  else say($("cabErr"), "კაბინეტი ვერ ჩაიტვირთა. სცადე თავიდან.", "err");
+}
+
+function upcomingItems(p) {
+  const t = todayStr(), now = new Date(), nowHM = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
+  const items = [];
+  p.memberships.filter(m => !m.pending).forEach(m => {
+    let left = m.remaining, d = t;
+    for (let i = 0; i < 35 && left > 0; i++, d = addDays(d, 1)) {
+      if (!m.days.includes(parseYmd(d).getDay())) continue;
+      if (d === t && m.time <= nowHM) continue;
+      items.push({ date: d, time: m.time, title: "ჯგუფური ვარჯიში", sub: m.label, chip: ["acc", "ჯგუფი"] });
+      left--;
+    }
+  });
+  p.individual.filter(r => r.date >= t && (r.status === "ახალი" || r.status === "დადასტურებული")).forEach(r => {
+    items.push({ date: r.date, time: r.time, title: "ინდივიდუალური ვარჯიში", sub: `${r.people} ადამიანი · ${r.price} ₾`,
+      chip: r.status === "ახალი" ? ["wait", "დასადასტურებელი"] : ["ok", "დადასტურებული"] });
+  });
+  return items.sort((a, b) => (a.date + a.time < b.date + b.time ? -1 : 1)).slice(0, 8);
+}
+
+function renderCabinet() {
+  const p = profile;
+  $("cabName").innerHTML = `გამარჯობა, <em>${esc(p.name.split(" ")[0])}</em>`;
+  $("cabPhone").textContent = fmtPhone(p.phone);
+  const paid = p.memberships.filter(m => !m.pending);
+  const remaining = paid.reduce((s, m) => s + m.remaining, 0);
+  $("cabStats").innerHTML = `
+    <div class="stat hl"><b>${p.stats.attended}</b><span>ჩატარებული ვარჯიში სულ</span></div>
+    <div class="stat"><b>${p.stats.month}</b><span>ამ თვეში</span></div>
+    <div class="stat${paid.length && remaining <= 1 ? " warn" : ""}"><b>${paid.length ? remaining : "—"}${paid.length ? "<small> / " + paid.reduce((s, m) => s + m.purchased, 0) + "</small>" : ""}</b><span>აბონემენტში დარჩენილი</span></div>`;
+
+  const up = upcomingItems(p);
+  $("cabUpcoming").innerHTML = up.length ? up.map((it, i) => {
+    const d = parseYmd(it.date);
+    return `<div class="up${i === 0 ? " next" : ""}">
+      <div class="datebox"><b>${d.getDate()}</b><span>${MON[d.getMonth()]}</span></div>
+      <div class="what"><b>${esc(it.title)}</b><span>${WD[d.getDay()]}, ${it.time} · ${esc(it.sub)}</span></div>
+      <span class="chip ${it.chip[0]}">${it.chip[1]}</span>
+    </div>`;
+  }).join("") : `<p class="empty">დაგეგმილი ვარჯიში არ გაქვს. <a href="#groups">ჩაეწერე ჯგუფში</a> ან <a href="#individual">დაჯავშნე ინდივიდუალური</a>.</p>`;
+
+  $("cabPasses").innerHTML = p.memberships.length ? p.memberships.map(m => {
+    if (m.pending) return `<div class="pass">
+      <div class="ttl"><b>${esc(m.label)}</b><span class="chip wait">გადახდის მოლოდინში</span></div>
+      <div class="hint" style="font-size:13px">ადგილი დაჯავშნილია. გადარიცხე ${GROUP_PRICE} ₾ და როგორც კი ჩარიცხვას დავადასტურებ, ჩაირიცხები კურსზე.</div>
+      ${payHtml(purposeFor(p.name, m.group))}
+    </div>`;
+    const cells = Math.max(m.purchased, PASS);
+    return `<div class="pass">
+      <div class="ttl"><b>${esc(m.label)}</b><span class="chip acc">${m.remaining} დარჩა</span></div>
+      <div class="track" style="grid-template-columns:repeat(${Math.min(cells, 8)},1fr)">${Array.from({ length: cells }, (_, i) => `<i class="${i < m.used ? "used" : ""}"></i>`).join("")}</div>
+      <div class="nums"><span>გამოყენებული ${m.used} / ${m.purchased}</span><span>${m.since ? "წევრი " + niceDate(m.since).split(",")[0] + "-დან" : ""}</span></div>
+      ${m.remaining === 0 ? `<div class="alert">აბონემენტი ამოიწურა. განსაახლებლად დამიკავშირდი.</div>` : m.remaining <= 2 ? `<div class="alert">აბონემენტი მალე მთავრდება.</div>` : ""}
+    </div>`;
+  }).join("") : `<p class="empty">ჯგუფური აბონემენტი არ გაქვს. 400 ₾ = 8 ვარჯიში. <a href="#groups">აირჩიე ჯგუფი</a></p>`;
+
+  $("cabHistory").innerHTML = p.history.length ? `<div class="tbl-wrap"><table class="hist">
+    <thead><tr><th>თარიღი</th><th>ვარჯიში</th><th>სტატუსი</th></tr></thead>
+    <tbody>${p.history.map(h => `<tr><td class="d">${esc(h.date)}</td><td>${esc(h.label)}</td>
+      <td><span class="chip ${h.status === "მოვიდა" ? "ok" : "no"}">${h.status === "მოვიდა" ? "ჩატარდა" : "გაცდენილი"}</span></td></tr>`).join("")}</tbody>
+  </table></div>` : `<p class="empty">ჩატარებული ვარჯიშები აქ გამოჩნდება, როცა ტრენერი დასწრებას მონიშნავს.</p>`;
+  say($("cabErr"), "");
+}
+
+/* ---------- Trainer ---------- */
+let trDate = todayStr(), trTab = "att", trDay = null, trMarks = {};
+function trainerInit() {
+  $("trLogin").hidden = !!aToken;
+  $("trPanel").hidden = !aToken;
+  if (aToken) { loadDay(); loadRequests(); loadMembers(); }
+}
+function trFail(res) {
+  if (res.error === "auth") { aToken = null; store.set("gv_a", null); trainerInit(); say($("trLoginMsg"), ERR.auth, "err"); return; }
+  say($("trErr"), errText(res.error), "err");
+}
+$("trLoginForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  try {
+    const res = await api({ action: "admin_login", password: $("trPass").value });
+    if (res.ok) { aToken = res.token; store.set("gv_a", aToken); $("trLoginForm").reset(); say($("trLoginMsg"), ""); trainerInit(); }
+    else say($("trLoginMsg"), errText(res.error), "err");
+  } catch (err) { say($("trLoginMsg"), errText(), "err"); }
+});
+$("trLogout").addEventListener("click", () => { aToken = null; store.set("gv_a", null); trainerInit(); });
+
+document.querySelectorAll(".tabs button").forEach(b => b.addEventListener("click", () => {
+  trTab = b.dataset.tab;
+  document.querySelectorAll(".tabs button").forEach(x => x.setAttribute("aria-selected", x === b));
+  document.querySelectorAll("[data-pane]").forEach(p => (p.hidden = p.dataset.pane !== trTab));
+  say($("trErr"), "");
+  if (trTab === "att") loadDay();
+  if (trTab === "req") loadRequests();
+  if (trTab === "mem") loadMembers();
+  if (trTab === "db") loadStudents();
+}));
+
+// Attendance
+function setDate(d) { trDate = d; loadDay(); }
+$("dPrev").addEventListener("click", () => setDate(addDays(trDate, -1)));
+$("dNext").addEventListener("click", () => setDate(addDays(trDate, 1)));
+$("dToday").addEventListener("click", () => setDate(todayStr()));
+$("dDate").addEventListener("change", e => e.target.value && setDate(e.target.value));
+
+async function loadDay() {
+  $("dDate").value = trDate;
+  $("dWd").textContent = WD[parseYmd(trDate).getDay()] + (trDate === todayStr() ? " · დღეს" : "");
+  $("sessions").innerHTML = `<p class="empty">იტვირთება…</p>`;
+  try {
+    const res = await api({ action: "admin_day", token: aToken, date: trDate });
+    if (!res.ok) return trFail(res);
+    renderDay(res);
+  } catch (e) { say($("trErr"), errText(), "err"); }
+}
+function renderDay(res) {
+  trDay = res; trMarks = {};
+  res.sessions.forEach((s, i) => s.members.forEach(m => (trMarks[i + "|" + m.id] = m.mark || "")));
+  $("sessions").innerHTML = res.sessions.length ? res.sessions.map((s, i) => `
+    <div class="card sess" data-i="${i}">
+      <div class="sess-h"><b>${esc(s.time)}</b><span>${esc(s.label)}</span></div>
+      ${s.members.length ? s.members.map(m => `
+        <div class="mem">
+          <div class="who"><b>${esc(m.name)}</b><span>${fmtPhone(m.phone)}${m.remaining != null ? ` · აბონემენტში დარჩა ${m.remaining}` : ""}</span></div>
+          <div class="toggle" data-key="${i}|${esc(m.id)}">
+            <button type="button" data-v="მოვიდა" class="${m.mark === "მოვიდა" ? "on-yes" : ""}">მოვიდა</button>
+            <button type="button" data-v="გააცდინა" class="${m.mark === "გააცდინა" ? "on-no" : ""}">გააცდინა</button>
+          </div>
+        </div>`).join("") + `<div class="sess-f"><span class="msg" data-msg></span><button class="btn btn-primary btn-sm" type="button" data-save>შენახვა</button></div>`
+      : `<p class="empty">ამ ჯგუფში ჯერ არავინ არის.</p>`}
+    </div>`).join("") : `<p class="empty">ამ დღეს ვარჯიში არ არის დაგეგმილი.</p>`;
+}
+$("sessions").addEventListener("click", async e => {
+  const tb = e.target.closest(".toggle button");
+  if (tb) {
+    const key = tb.parentElement.dataset.key;
+    trMarks[key] = trMarks[key] === tb.dataset.v ? "" : tb.dataset.v;
+    tb.parentElement.querySelectorAll("button").forEach(b => (b.className = trMarks[key] === b.dataset.v ? (b.dataset.v === "მოვიდა" ? "on-yes" : "on-no") : ""));
+    return;
+  }
+  const sv = e.target.closest("[data-save]");
+  if (!sv) return;
+  const card = sv.closest(".sess"), i = +card.dataset.i, s = trDay.sessions[i];
+  const marks = s.members.map(m => ({ member: m.id, status: trMarks[i + "|" + m.id] || "" }));
+  sv.disabled = true;
+  try {
+    const res = await api({ action: "admin_mark", token: aToken, date: trDate, kind: s.kind, ref: s.ref, marks });
+    if (!res.ok) { sv.disabled = false; return trFail(res); }
+    renderDay(res);
+    say(document.querySelector(`.sess[data-i="${i}"] [data-msg]`), "შენახულია", "ok");
+  } catch (err) { sv.disabled = false; say(card.querySelector("[data-msg]"), errText(), "err"); }
+});
+
+// Requests
+async function loadRequests() {
+  try {
+    const res = await api({ action: "admin_requests", token: aToken });
+    if (!res.ok) return trFail(res);
+    renderRequests(res.requests);
+  } catch (e) { say($("trErr"), errText(), "err"); }
+}
+function renderRequests(list) {
+  const n = list.filter(r => r.status === "ახალი").length;
+  $("reqBadge").hidden = !n; $("reqBadge").textContent = n;
+  $("reqList").innerHTML = list.length ? list.map(r => `
+    <div class="card req" data-id="${esc(r.id)}">
+      <div class="req-h"><b>${esc(r.name)} · <span style="font-family:var(--mono);font-weight:500">${fmtPhone(r.phone)}</span></b>
+        <span class="chip ${r.status === "ახალი" ? "wait" : "ok"}">${esc(r.status)}</span></div>
+      <div style="font-size:14px;color:var(--muted)">${r.people} ადამიანი · ${r.price} ₾</div>
+      ${r.experience ? `<p class="note">სათამაშო გამოცდილება: <span class="chip acc">${esc(r.experience)}</span></p>` : ""}
+      <div class="req-f">
+        <div class="field"><label for="rd-${esc(r.id)}">დღე</label><input type="date" id="rd-${esc(r.id)}" value="${esc(r.date)}"></div>
+        <div class="field"><label for="rt-${esc(r.id)}">დრო</label><input type="time" step="1800" id="rt-${esc(r.id)}" value="${esc(r.time)}"></div>
+        <div class="btns">
+          <button class="btn btn-primary btn-sm" type="button" data-act="ok">${r.status === "ახალი" ? "დადასტურება" : "შენახვა"}</button>
+          <button class="btn btn-danger btn-sm" type="button" data-act="cancel">გაუქმება</button>
+        </div>
+      </div>
+    </div>`).join("") : `<p class="empty">ახალი მოთხოვნები არ არის.</p>`;
+}
+$("reqList").addEventListener("click", async e => {
+  const b = e.target.closest("[data-act]");
+  if (!b) return;
+  const card = b.closest(".req"), id = card.dataset.id;
+  if (b.dataset.act === "cancel" && !b.dataset.sure) { b.dataset.sure = "1"; b.textContent = "დარწმუნებული ხარ?"; return; }
+  const body = { action: "admin_update_request", token: aToken, id };
+  if (b.dataset.act === "ok") Object.assign(body, { status: "დადასტურებული", date: $("rd-" + id).value, time: $("rt-" + id).value.slice(0, 5) });
+  else body.status = "გაუქმებული";
+  b.disabled = true;
+  try {
+    const res = await api(body);
+    if (!res.ok) { b.disabled = false; return trFail(res); }
+    renderRequests(res.requests);
+  } catch (err) { b.disabled = false; say($("trErr"), errText(), "err"); }
+});
+
+// Members
+async function loadMembers() {
+  $("memList").innerHTML = `<p class="empty">იტვირთება…</p>`;
+  try {
+    const res = await api({ action: "admin_members", token: aToken });
+    if (!res.ok) return trFail(res);
+    renderMembers(res.members, res.reserved);
+  } catch (e) { say($("trErr"), errText(), "err"); }
+}
+function renderMembers(list, reserved = {}) {
+  const np = list.filter(m => m.pending).length;
+  $("payBadge").hidden = !np; $("payBadge").textContent = np;
+  list = list.slice().sort((a, b) => (b.pending ? 1 : 0) - (a.pending ? 1 : 0));
+  const by = {};
+  list.forEach(m => (by[m.group] = by[m.group] || []).push(m));
+  const groups = Object.keys(GROUPS).filter(g => by[g] || reserved[g]);
+  if (!groups.length) { $("memList").innerHTML = `<p class="empty">ჯგუფებში ჯერ არავინ არის ჩაწერილი.</p>`; return; }
+  $("memList").innerHTML = groups.map(g => {
+    const ms = by[g] || [], r = reserved[g] || 0, total = ms.length + r;
+    return `
+    <h3>${esc(GROUPS[g].label)} <span class="chip ${total >= CAPACITY ? "no" : ""}">${total >= CAPACITY ? "სავსეა" : total + " / " + CAPACITY}</span></h3>
+    ${r ? `<div class="mrow"><div class="hint" style="font-size:14px">${r} ადგილი დაკავებულია საიტის გარეშე</div><span></span><span class="hint">იცვლება ცხრილში</span></div>` : ""}
+    ${ms.map(m => m.pending ? `<div class="mrow" data-id="${esc(m.id)}">
+      <div><b>${esc(m.name)}</b> <span class="hint" style="font-family:var(--mono)">${fmtPhone(m.phone)}</span></div>
+      <span class="chip wait">გადახდის მოლოდინში</span>
+      <div class="acts">
+        <button class="btn btn-primary btn-sm" type="button" data-act="pay">ჩარიცხვა დადასტურდა</button>
+        <button class="btn btn-danger btn-sm" type="button" data-act="remove">უარყოფა</button>
+      </div>
+    </div>` : `<div class="mrow" data-id="${esc(m.id)}">
+      <div><b>${esc(m.name)}</b> <span class="hint" style="font-family:var(--mono)">${fmtPhone(m.phone)}</span></div>
+      <span class="chip ${m.remaining === 0 ? "no" : m.remaining <= 2 ? "wait" : "acc"}">დარჩა ${m.remaining} / ${m.purchased}</span>
+      <div class="acts">
+        <button class="btn btn-ghost btn-sm" type="button" data-act="renew">+8 განახლება</button>
+        <button class="btn btn-danger btn-sm" type="button" data-act="remove">ამოშლა</button>
+      </div>
+    </div>`).join("")}`;
+  }).join("");
+}
+$("memList").addEventListener("click", async e => {
+  const b = e.target.closest("[data-act]");
+  if (!b) return;
+  const id = b.closest(".mrow").dataset.id;
+  if (!b.dataset.sure) { b.dataset.sure = "1"; b.textContent = b.dataset.act === "renew" ? "დაადასტურე +8" : b.dataset.act === "pay" ? "დიახ, ჩაირიცხა 400 ₾" : "დარწმუნებული ხარ?"; return; }
+  b.disabled = true;
+  try {
+    const res = await api(b.dataset.act === "renew"
+      ? { action: "admin_renew", token: aToken, member: id, add: PASS }
+      : b.dataset.act === "pay" ? { action: "admin_confirm_payment", token: aToken, member: id }
+      : { action: "admin_cancel_member", token: aToken, member: id });
+    if (!res.ok) { b.disabled = false; return trFail(res); }
+    renderMembers(res.members, res.reserved);
+    loadCounts();
+  } catch (err) { b.disabled = false; say($("trErr"), errText(), "err"); }
+});
+
+// Registered students database
+let dbRows = [];
+async function loadStudents() {
+  $("dbList").innerHTML = `<p class="empty">იტვირთება…</p>`;
+  try {
+    const res = await api({ action: "admin_students", token: aToken });
+    if (!res.ok) return trFail(res);
+    dbRows = res.students; renderStudents();
+  } catch (e) { say($("trErr"), errText(), "err"); }
+}
+function renderStudents() {
+  const q = $("dbSearch").value.trim().toLowerCase(), qd = q.replace(/\D/g, "");
+  const rows = dbRows.filter(s => !q || s.name.toLowerCase().includes(q) || (qd && s.phone.includes(qd)));
+  $("dbCount").textContent = `სულ ${dbRows.length} რეგისტრირებული` + (q ? ` · ნაპოვნია ${rows.length}` : "");
+  $("dbList").innerHTML = rows.length ? `<table class="hist db">
+    <thead><tr><th>სახელი</th><th>ტელეფონი</th><th>რეგისტრაცია</th><th>ჯგუფი</th><th>დარჩა</th><th>ვარჯიშები</th><th>ბოლო ვარჯიში</th><th>ინდ.</th></tr></thead>
+    <tbody>${rows.map(s => `<tr>
+      <td><b>${esc(s.name)}</b></td>
+      <td class="d">${fmtPhone(s.phone)}</td>
+      <td class="d">${esc(s.created)}</td>
+      <td>${s.groups.length ? s.groups.map(g => `<span class="chip acc">${esc(g)}</span>`).join("") : `<span class="hint">—</span>`}</td>
+      <td>${s.remaining == null ? "—" : `<span class="chip ${s.remaining === 0 ? "no" : s.remaining <= 2 ? "wait" : ""}">${s.remaining}</span>`}</td>
+      <td>${s.attended}</td>
+      <td class="d">${esc(s.last) || "—"}</td>
+      <td>${s.individual || "—"}</td>
+    </tr>`).join("")}</tbody></table>`
+    : `<p class="empty">${dbRows.length ? "ვერაფერი მოიძებნა." : "ჯერ არავინ დარეგისტრირებულა."}</p>`;
+}
+$("dbSearch").addEventListener("input", renderStudents);
+
+/* ================= DEMO BACKEND =================
+   მუშაობს მხოლოდ მაშინ, როცა API_URL ცარიელია. მონაცემები მეხსიერებაშია. */
+// დემო: რეალური სურათი — ნინო (mw-19), მოსწავლე 2 (tt-20), მოსწავლე 3 (tt-21) + საიტის გარეშე დაკავებული
+const M = { students: [], groups: [], inds: [], att: [], seq: 100, reserved: { "mw-19": 0, "mw-20": 4, "mw-21": 4, "mw-22": 0, "tt-19": 4, "tt-20": 0, "tt-21": 2, "tt-22": 0, "ss-09": 0, "ss-10": 0, "ss-18": 4 } };
+function mockSeed() {
+  const t = todayStr();
+  const past = (days, n) => { const out = []; let d = addDays(t, -1); while (out.length < n) { if (days.includes(parseYmd(d).getDay())) out.push(d); d = addDays(d, -1); } return out.reverse(); };
+  M.students.push({ phone: "555000000", name: "ნინო (დემო)", pin: "1234", created: addDays(t, -20) },
+    { phone: "555000002", name: "დემო მოსწავლე 2", pin: "1111", created: addDays(t, -18) },
+    { phone: "555000003", name: "დემო მოსწავლე 3", pin: "2222", created: addDays(t, -9) },
+    { phone: "555000004", name: "დემო მოსწავლე 4", pin: "3333", created: addDays(t, -2) });
+  const g1 = { id: "G1", group: "mw-19", name: "ნინო (დემო)", phone: "555000000", active: true, purchased: 8, created: addDays(t, -20) };
+  M.groups.push(g1,
+    { id: "G2", group: "tt-20", name: "დემო მოსწავლე 2", phone: "555000002", active: true, purchased: 8, created: addDays(t, -20) },
+    { id: "G3", group: "tt-21", name: "დემო მოსწავლე 3", phone: "555000003", active: true, purchased: 8, created: addDays(t, -10) });
+  past([1, 3], 5).forEach((d, i) => M.att.push({ date: d, kind: "ჯგუფური", label: GROUPS["mw-19"].label, member: "G1", phone: "555000000", status: i === 2 ? "გააცდინა" : "მოვიდა" }));
+  M.inds.push({ id: "I1", people: 2, price: 180, date: addDays(t, 3), time: "18:00", name: "ნინო (დემო)", phone: "555000000", experience: "0-1 წელი", status: "დადასტურებული" },
+    { id: "I2", people: 1, price: 140, date: addDays(t, 2), time: "12:00", name: "დემო მოსწავლე 4", phone: "555000004", experience: "სრულიად დამწყები", status: "ახალი" });
+}
+function mockApi(d) {
+  const fail = c => { throw { code: c }; };
+  const key = p => { let x = String(p || "").replace(/\D/g, ""); return x.length > 9 ? x.slice(-9) : x; };
+  const used = id => M.att.filter(a => a.member === id).length;
+  const cnt = () => { const c = {}; Object.keys(GROUPS).forEach(k => (c[k] = (M.reserved[k] || 0) + M.groups.filter(g => g.group === k && g.active).length)); return c; };
+  const who = () => {
+    if (d.token) { const p = d.token.slice(2); const s = M.students.find(x => x.phone === p); if (!s) fail("auth"); return s; }
+    const phone = key(d.phone), name = String(d.name || "").trim();
+    if (name.length < 2 || phone.length !== 9) fail("invalid");
+    if (!/^\d{4}$/.test(d.pin || "")) fail("pin_format");
+    let s = M.students.find(x => x.phone === phone);
+    if (s && s.pin !== d.pin) fail("pin_mismatch");
+    if (!s) M.students.push((s = { phone, name, pin: d.pin, created: todayStr() }));
+    return s;
+  };
+  const admin = () => { if (d.token !== "a") fail("auth"); };
+  const prof = phone => {
+    const s = M.students.find(x => x.phone === phone); if (!s) fail("auth");
+    const att = M.att.filter(a => a.phone === phone), month = todayStr().slice(0, 7);
+    return {
+      name: s.name, phone,
+      memberships: M.groups.filter(g => g.phone === phone && g.active).map(g => ({ id: g.id, group: g.group, label: GROUPS[g.group].label, days: GROUPS[g.group].days, time: GROUPS[g.group].time, since: g.created, pending: !!g.pending, purchased: g.purchased, used: used(g.id), remaining: Math.max(0, g.purchased - used(g.id)) })),
+      individual: M.inds.filter(r => r.phone === phone && r.status !== "გაუქმებული").map(r => ({ ...r })),
+      history: att.slice().sort((a, b) => (a.date < b.date ? 1 : -1)).map(a => ({ date: a.date, kind: a.kind, label: a.label, status: a.status })),
+      stats: { attended: att.filter(a => a.status === "მოვიდა").length, missed: att.filter(a => a.status === "გააცდინა").length, month: att.filter(a => a.status === "მოვიდა" && a.date.slice(0, 7) === month).length },
+    };
+  };
+  const day = () => {
+    const wd = parseYmd(d.date).getDay(), mark = id => (M.att.find(a => a.date === d.date && a.member === id) || {}).status || "";
+    const sessions = [];
+    Object.values(GROUPS).forEach(g => { if (g.days.includes(wd)) sessions.push({ kind: "group", ref: g.id, time: g.time, label: g.label, members: M.groups.filter(m => m.group === g.id && m.active && !m.pending).map(m => ({ id: m.id, name: m.name, phone: m.phone, remaining: Math.max(0, m.purchased - used(m.id)), mark: mark(m.id) })) }); });
+    M.inds.filter(r => r.date === d.date && r.status !== "გაუქმებული").forEach(r => sessions.push({ kind: "individual", ref: r.id, time: r.time, label: `ინდივიდუალური · ${r.people} ადამიანი · ${r.price} ₾`, members: [{ id: r.id, name: r.name, phone: r.phone, mark: mark(r.id) }] }));
+    sessions.sort((a, b) => (a.time < b.time ? -1 : 1));
+    return { ok: true, date: d.date, sessions };
+  };
+  const reqs = () => ({ ok: true, requests: M.inds.filter(r => r.status === "ახალი" || (r.status === "დადასტურებული" && r.date >= todayStr())).sort((a, b) => (a.date + a.time < b.date + b.time ? -1 : 1)).map(r => ({ ...r })) });
+  const mems = () => ({ ok: true, members: M.groups.filter(g => g.active).map(g => ({ id: g.id, group: g.group, label: GROUPS[g.group].label, name: g.name, phone: g.phone, pending: !!g.pending, purchased: g.purchased, used: used(g.id), remaining: Math.max(0, g.purchased - used(g.id)) })), reserved: { ...M.reserved } });
+  try {
+    switch (d.action) {
+      case "counts": return { ok: true, counts: cnt() };
+      case "group": {
+        const s = who(), g = GROUPS[d.group]; if (!g) fail("invalid");
+        const inG = M.groups.filter(x => x.group === g.id && x.active);
+        if (inG.some(x => x.phone === s.phone)) fail("already");
+        if (inG.length + (M.reserved[g.id] || 0) >= CAPACITY) fail("full");
+        M.groups.push({ id: "G" + ++M.seq, group: g.id, name: s.name, phone: s.phone, active: true, pending: true, purchased: PASS, created: todayStr() });
+        return { ok: true, counts: cnt(), token: "s:" + s.phone };
+      }
+      case "individual": {
+        if (!d.token) fail("login_required");
+        if (!["სრულიად დამწყები", "0-1 წელი", "1+ წელი"].includes(d.experience)) fail("experience");
+        const s = who(); if (!PRICES[d.people]) fail("invalid"); if (d.date < todayStr()) fail("past");
+        M.inds.push({ id: "I" + ++M.seq, people: d.people, price: PRICES[d.people], date: d.date, time: d.time, name: s.name, phone: s.phone, experience: d.experience, status: "ახალი" });
+        return { ok: true, token: "s:" + s.phone };
+      }
+      case "register": {
+        const phone = key(d.phone), name = String(d.name || "").trim();
+        if (name.length < 2 || phone.length !== 9) fail("invalid");
+        if (!/^\d{4}$/.test(d.pin || "")) fail("pin_format");
+        const s = M.students.find(x => x.phone === phone);
+        if (s && s.pin !== d.pin) fail("exists");
+        if (!s) M.students.push({ phone, name, pin: d.pin, created: todayStr() });
+        return { ok: true, token: "s:" + phone, profile: prof(phone) };
+      }
+      case "login": {
+        const phone = key(d.phone), s = M.students.find(x => x.phone === phone);
+        if (!s) fail("no_account"); if (s.pin !== d.pin) fail("pin_wrong");
+        return { ok: true, token: "s:" + phone, profile: prof(phone) };
+      }
+      case "me": if (!String(d.token).startsWith("s:")) fail("auth"); return { ok: true, profile: prof(d.token.slice(2)) };
+      case "admin_login": if (d.password !== "demo") fail("pin_wrong"); return { ok: true, token: "a" };
+      case "admin_day": admin(); return day();
+      case "admin_mark": {
+        admin();
+        d.marks.forEach(m => {
+          const ex = M.att.findIndex(a => a.date === d.date && a.member === m.member);
+          const g = M.groups.find(x => x.id === m.member), r = M.inds.find(x => x.id === m.member), src = g || r;
+          if (!src) return;
+          if (r) r.status = m.status === "მოვიდა" ? "ჩატარდა" : m.status === "გააცდინა" ? "გაცდენილი" : "დადასტურებული";
+          if (ex >= 0 && !m.status) M.att.splice(ex, 1);
+          else if (ex >= 0) M.att[ex].status = m.status;
+          else if (m.status) M.att.push({ date: d.date, kind: g ? "ჯგუფური" : "ინდივიდუალური", label: g ? GROUPS[g.group].label : `ინდივიდუალური · ${r.people} ადამიანი`, member: m.member, phone: src.phone, status: m.status });
+        });
+        return day();
+      }
+      case "admin_requests": admin(); return reqs();
+      case "admin_update_request": {
+        admin(); const r = M.inds.find(x => x.id === d.id); if (!r) fail("invalid");
+        if (d.date) r.date = d.date; if (d.time) r.time = d.time; if (d.status) r.status = d.status;
+        return reqs();
+      }
+      case "admin_members": admin(); return mems();
+      case "admin_students": admin(); return { ok: true, students: M.students.map(s => {
+        const mine = M.groups.filter(g => g.phone === s.phone && g.active);
+        const done = M.att.filter(a => a.phone === s.phone && a.status === "მოვიდა").map(a => a.date).sort();
+        return { name: s.name, phone: s.phone, created: s.created, groups: mine.map(g => GROUPS[g.group].label),
+          remaining: mine.length ? mine.reduce((x, g) => x + Math.max(0, g.purchased - used(g.id)), 0) : null,
+          attended: done.length, last: done[done.length - 1] || "", individual: M.inds.filter(r => r.phone === s.phone && r.status !== "გაუქმებული").length };
+      }).sort((a, b) => (a.created < b.created ? 1 : -1)) };
+      case "admin_renew": { admin(); const g = M.groups.find(x => x.id === d.member); if (!g) fail("invalid"); g.purchased += d.add; return mems(); }
+      case "admin_confirm_payment": { admin(); const g = M.groups.find(x => x.id === d.member); if (!g) fail("invalid"); g.pending = false; return mems(); }
+      case "admin_cancel_member": { admin(); const g = M.groups.find(x => x.id === d.member); if (!g) fail("invalid"); g.active = false; return mems(); }
+    }
+    fail("bad_request");
+  } catch (e) { return { ok: false, error: e.code || "server" }; }
+}
+
+/* ---------- Init ---------- */
+if (DEMO) {
+  mockSeed();
+  $("demoBar").hidden = false;
+  // demo tokens from another (real) setup are meaningless here
+  if (sToken && !sToken.startsWith("s:")) sToken = null;
+  if (aToken && aToken !== "a") aToken = null;
+}
+$("yr").textContent = new Date().getFullYear();
+renderAccount();
+renderSchedule();
+loadCounts();
+refreshProfile();
+route();
+setInterval(loadCounts, 60000);
+</script>
+</body>
+</html>
