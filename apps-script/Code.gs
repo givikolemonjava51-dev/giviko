@@ -23,6 +23,9 @@ const DUR_PRICES = {
 // სტატისტიკა: ტრენერის სუფთა მოგება ერთ ვარჯიშზე
 const PROFIT_IND_HOUR = 80;              // ინდივიდუალური, 1 საათზე (1.5 სთ = 120, 2 სთ = 160)
 const PROFIT_GROUP = { 3: 75, 4: 120 };  // ჯგუფი ადამიანების მიხედვით; 2 ან ნაკლები = 0
+// პროგრესი: უნარები, რომლებსაც ტრენერი 1-5 ვარსკვლავით აფასებს (ემთხვევა index.html-ს)
+const SKILLS = ["forehand", "backhand", "volley", "bandeja", "vibora", "positioning"];
+const SKILL_EVERY = 4; // ამდენი ვარჯიშის შემდეგ პანელი შეგახსენებს განახლებას
 const EXPERIENCE = ["სრულიად დამწყები", "0-1 წელი", "1+ წელი"];
 const SCHEDULE = [
   { key: "mw", label: "ორშაბათი-ოთხშაბათი", days: [1, 3], hours: ["19:00", "20:00", "21:00", "22:00"] },
@@ -48,6 +51,7 @@ const TABLES = {
   Waitlist: ["id", "group", "name", "phone", "status", "created"],
   Changes: ["id", "kind", "ref", "name", "phone", "date", "time", "action", "newDate", "newTime", "status", "created"],
   Feedback: ["date", "member", "phone", "name", "label", "text", "updated"],
+  Skills: ["date", "phone", "name"].concat(SKILLS, ["lessons"]),
 };
 // ცხრილების აღწერა: როცა იცვლება, ძველ ცხრილს ემატება ახალი ფურცლები და სვეტები
 const SCHEMA = Object.keys(TABLES).map(k => k + ":" + TABLES[k].length).join(",");
@@ -178,7 +182,7 @@ function json_(o) {
 }
 
 const WRITES = ["group", "individual", "register", "waitlist", "waitlist_leave", "renew", "cancel", "reschedule",
-  "admin_mark", "admin_update_request", "admin_renew", "admin_confirm_payment", "admin_cancel_member", "admin_change", "admin_waitlist_remove", "admin_feedback"];
+  "admin_mark", "admin_update_request", "admin_renew", "admin_confirm_payment", "admin_cancel_member", "admin_change", "admin_waitlist_remove", "admin_feedback", "admin_skills"];
 
 // ხშირი წაკითხვები (განრიგი, კაბინეტი) ინახება ქეშში, რომ ცხრილი ყოველ ჯერზე არ გაიხსნას.
 // ნებისმიერი ჩაწერა ქეშს აახლებს; ცხრილში ხელით შეცვლილი ციფრი საიტზე მაქსიმუმ CACHE_SEC წამში ჩანს.
@@ -222,6 +226,15 @@ function route_(d, db) {
   const wl = () => db.all("Waitlist").filter(w => w.status === "active"), chg = () => db.all("Changes");
   const reserved = () => { const r = {}; db.all("Reserved").forEach(x => (r[x.group] = Number(x.count) || 0)); return r; };
   const fbs = () => db.all("Feedback");
+  const attended = phone => att().filter(a => a.phone === phone && a.status === "მოვიდა").length;
+  // პროგრესი: ბოლო შეფასება, წინა შეფასება (ისრისთვის) და რამდენი ვარჯიში გავიდა მას შემდეგ
+  const skills = phone => {
+    const rows = db.all("Skills").filter(x => x.phone === phone).sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+    const pick = x => { const o = {}; SKILLS.forEach(k => (o[k] = Math.max(0, Math.min(5, Number(x[k]) || 0)))); return o; };
+    const last = rows[rows.length - 1], prev = rows[rows.length - 2];
+    if (!last) return { skills: null, since: attended(phone), every: SKILL_EVERY };
+    return { skills: pick(last), prev: prev ? pick(prev) : null, date: last.date, since: Math.max(0, attended(phone) - (Number(last.lessons) || 0)), every: SKILL_EVERY };
+  };
   const used = id => att().filter(a => a.member === id).length;
   const active = g => bool_(g.active);
   const cnt = () => {
@@ -263,6 +276,7 @@ function route_(d, db) {
       individual: inds().filter(r => r.phone === phone && r.status !== "გაუქმებული").map(pubReq_),
       waitlist: wl().filter(w => w.phone === phone && GROUPS[w.group]).map(w => ({ id: w.id, group: w.group, label: GROUPS[w.group].label })),
       changes: chg().filter(c => c.phone === phone).map(pubChg_),
+      progress: skills(phone),
       feedback: fbs().filter(f => f.phone === phone && f.text).sort((a, b) => (a.date < b.date ? 1 : -1)).map(f => ({ date: f.date, label: f.label, text: f.text })),
       history: mine.slice().sort((a, b) => (a.date < b.date ? 1 : -1)).map(a => ({ date: a.date, kind: a.kind, label: a.label, status: a.status })),
       stats: {
@@ -496,6 +510,17 @@ function route_(d, db) {
       return { ok: true, member: d.member, feedback: text };
     }
 
+    case "admin_skills": {
+      admin();
+      const s = student(key_(d.phone)); if (!s) fail_("invalid");
+      const row = { date: today_(), phone: s.phone, name: s.name, lessons: attended(s.phone) };
+      SKILLS.forEach(k => (row[k] = Math.max(0, Math.min(5, Math.round(Number((d.skills || {})[k]) || 0)))));
+      // იმავე დღეს ხელახლა შენახვა ასწორებს დღევანდელ შეფასებას, ახალ ჩანაწერს არ ქმნის
+      const ex = db.all("Skills").find(x => x.phone === s.phone && x.date === row.date);
+      if (ex) { Object.assign(ex, row); db.save("Skills", ex); } else db.add("Skills", row);
+      return { ok: true, phone: s.phone, progress: skills(s.phone) };
+    }
+
     case "admin_stats": admin(); return stats();
 
     case "admin_requests": admin(); return reqs();
@@ -519,7 +544,7 @@ function route_(d, db) {
         const done = att().filter(a => a.phone === s.phone && a.status === "მოვიდა").map(a => a.date).sort();
         return { name: s.name, phone: s.phone, created: s.created, groups: mine.map(g => GROUPS[g.group].label),
           remaining: mine.length ? mine.reduce((x, g) => x + Math.max(0, (Number(g.purchased) || 0) - used(g.id)), 0) : null,
-          attended: done.length, last: done[done.length - 1] || "",
+          attended: done.length, last: done[done.length - 1] || "", progress: skills(s.phone),
           individual: inds().filter(r => r.phone === s.phone && r.status !== "გაუქმებული").length };
       }).sort((a, b) => (a.created < b.created ? 1 : -1)) };
     }
