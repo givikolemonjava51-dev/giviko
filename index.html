@@ -27,6 +27,7 @@
   --full: #4A5F69;
   --ok: #4ADE80;
   --err: #F87171;
+  --ball: #D4E340;
   --display: "Noto Sans Georgian", system-ui, sans-serif;
   --body: "Noto Sans Georgian", system-ui, -apple-system, "Segoe UI", sans-serif;
   --mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
@@ -36,7 +37,7 @@
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
 html { scroll-behavior: smooth; }
-@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } * { transition: none !important; } }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } *, *::before, *::after { transition: none !important; animation: none !important; } }
 body {
   margin: 0; background: var(--bg); color: var(--ink);
   font-family: var(--body); font-size: 16px; line-height: 1.6;
@@ -301,6 +302,44 @@ footer { border-top: 1px solid var(--line); margin-top: 48px; }
 footer .wrap { padding-block: 24px; display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; color: var(--muted); font-size: 14px; }
 footer a { color: var(--muted); }
 
+/* Motion: hero entrance, scroll reveal, price roll, seat pop, success burst, loading shimmer */
+.hero h1 { animation: rise .7s cubic-bezier(.2, .8, .2, 1) both; }
+.hero h1 em { animation: rise .7s cubic-bezier(.2, .8, .2, 1) both .15s; }
+.hero h1 em::after { content: ""; display: inline-block; width: .26em; height: .26em; margin-left: .12em; border-radius: 50%; vertical-align: .02em;
+  background: radial-gradient(circle at 35% 35%, color-mix(in srgb, var(--ball) 55%, white), var(--ball) 60%, color-mix(in srgb, var(--ball) 75%, black));
+  animation: ballIn 1.5s linear both .35s; }
+@keyframes rise { from { opacity: 0; transform: translateY(36px); } }
+@keyframes ballIn {
+  0% { transform: translate(-5em, -2.4em) rotate(-400deg); opacity: 0; }
+  8% { opacity: 1; }
+  28% { transform: translate(-3.2em, 0) rotate(-260deg); animation-timing-function: ease-out; }
+  46% { transform: translate(-1.8em, -1em) rotate(-160deg); animation-timing-function: ease-in; }
+  64% { transform: translate(-.7em, 0) rotate(-70deg); animation-timing-function: ease-out; }
+  76% { transform: translate(-.3em, -.32em) rotate(-30deg); animation-timing-function: ease-in; }
+  88%, 100% { transform: none; }
+}
+.reveal { opacity: 0; transform: translateY(28px); transition: opacity .6s ease, transform .6s cubic-bezier(.2, .8, .2, 1); }
+.reveal.in { opacity: 1; transform: none; }
+.roll { animation: rollIn .45s cubic-bezier(.3, .8, .3, 1) both; animation-delay: calc(var(--i, 0) * 50ms); }
+@keyframes rollIn { from { opacity: 0; transform: translateY(60%); } }
+.chip-btn { transition: background .2s ease, border-color .2s ease, color .2s ease; }
+.dayb .meta .free { display: inline-flex; align-items: center; gap: 6px; }
+.dayb .meta .free::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--accent); animation: livePulse 1.8s ease-out infinite; }
+@keyframes livePulse { from { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 70%, transparent); } to { box-shadow: 0 0 0 9px transparent; } }
+.dots i.pop { animation: pop .45s cubic-bezier(.3, 1.6, .5, 1) both; }
+@keyframes pop { from { transform: scale(.2); } }
+.fx { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 30; }
+dialog .fx { position: absolute; }
+.btn.sent, .btn.sent[disabled] { background: var(--ok); color: var(--accent-ink); }
+.sk { color: transparent !important; border-radius: 6px; background: linear-gradient(90deg, var(--line) 0%, color-mix(in srgb, var(--line) 55%, var(--muted)) 50%, var(--line) 100%) 0 0 / 200% 100%; animation: shimmer 1.2s linear infinite; }
+.slot.loading .dots i { animation: shimmer 1.2s linear infinite; background: linear-gradient(90deg, var(--line) 0%, color-mix(in srgb, var(--line) 55%, var(--muted)) 50%, var(--line) 100%) 0 0 / 200% 100%; }
+@keyframes shimmer { from { background-position: 100% 0; } to { background-position: -100% 0; } }
+.skel { display: grid; gap: 10px; }
+.skel span { display: block; height: 44px; }
+.coach .ph { position: relative; transition: transform .15s ease-out; }
+.coach .ph::after { content: ""; position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity .2s; background: radial-gradient(circle at var(--mx, 50%) var(--my, 30%), rgba(255, 255, 255, .16), transparent 55%); }
+.coach .ph.tilting::after { opacity: 1; }
+
 /* Coach */
 .coach { display: grid; grid-template-columns: 260px 1fr; gap: 28px; align-items: center; }
 .coach .ph { aspect-ratio: 4 / 5; border-radius: 14px; overflow: hidden; background: var(--accent-soft); display: grid; place-items: center; }
@@ -336,9 +375,18 @@ footer a { color: var(--muted); }
 .up .acts button { appearance: none; background: none; border: 1px solid var(--line); color: var(--muted); font: inherit; font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 999px; cursor: pointer; }
 .up .acts button:hover { color: var(--ink); border-color: var(--muted); }
 .up.off .what b, .up.off .datebox b { text-decoration: line-through; color: var(--muted); }
-.pbar { height: 14px; border-radius: 999px; background: var(--bg); border: 1px solid var(--line); overflow: hidden; position: relative; }
-.pbar i { position: absolute; inset: 0 auto 0 0; background: var(--accent); border-radius: 999px; }
-.pbar.low i { background: var(--warn); }
+.pring-row { display: flex; align-items: center; gap: 16px; }
+.pring { position: relative; width: 76px; height: 76px; flex: none; display: grid; place-items: center; }
+.pring svg { position: absolute; inset: 0; width: 100%; height: 100%; transform: rotate(-90deg); }
+.pring circle { fill: none; stroke-width: 5; }
+.pring .bg { stroke: var(--line); }
+.pring .fg { stroke: var(--accent); stroke-linecap: round; stroke-dasharray: 100; stroke-dashoffset: calc(100 - var(--p)); }
+.pring.low .fg { stroke: var(--warn); }
+.pring.anim .fg { animation: ringFill 1s cubic-bezier(.3, .8, .3, 1) both .15s; }
+.pring.done { filter: drop-shadow(0 0 10px color-mix(in srgb, var(--warn) 55%, transparent)); }
+.pring b { font-family: var(--display); font-stretch: 62.5%; font-weight: 900; font-size: 24px; line-height: 1; font-variant-numeric: tabular-nums; }
+.pring b small { font-size: 14px; color: var(--muted); }
+@keyframes ringFill { from { stroke-dashoffset: 100; } }
 .pass .used-txt { font-size: 15px; }
 .pass .used-txt b { font-family: var(--display); font-stretch: 62.5%; font-weight: 900; font-size: 26px; }
 .renew { display: grid; gap: 10px; padding: 14px; border: 1.5px dashed color-mix(in srgb, var(--warn) 55%, transparent); border-radius: 12px; font-size: 14px; }
@@ -1028,24 +1076,95 @@ $("loginForm").addEventListener("submit", async e => {
   btn.disabled = false;
 });
 
+/* ---------- Motion helpers ---------- */
+const RM = matchMedia("(prefers-reduced-motion: reduce)");
+let cabAnim = false;
+const skelHtml = n => `<div class="skel" role="status" aria-label="${L("იტვირთება…", "Loading…")}">${'<span class="sk"></span>'.repeat(n)}</div>`;
+// ელემენტის პირველ რიცხვს 0-დან ითვლის
+function countUp(el, dur = 900) {
+  if (RM.matches) return;
+  const tn = [...el.childNodes].find(n => n.nodeType === 3 && /\d/.test(n.nodeValue));
+  if (!tn) return;
+  const m = tn.nodeValue.match(/\d+/), to = +m[0], pre = tn.nodeValue.slice(0, m.index), post = tn.nodeValue.slice(m.index + m[0].length), t0 = performance.now();
+  if (!to) return;
+  const step = now => {
+    if (!tn.isConnected) return;
+    const k = Math.min(1, (now - t0) / dur);
+    tn.nodeValue = pre + Math.round(to * (1 - Math.pow(1 - k, 3))) + post;
+    if (k < 1) requestAnimationFrame(step);
+  };
+  tn.nodeValue = pre + 0 + post;
+  requestAnimationFrame(step);
+}
+// წარმატებისას პადელის ბურთები იფანტება ღილაკიდან
+function burst(from) {
+  if (RM.matches || !from) return;
+  const host = from.closest("dialog[open]") || document.body, inDlg = host !== document.body;
+  const box = inDlg ? host.getBoundingClientRect() : { left: 0, top: 0, width: innerWidth, height: innerHeight };
+  const o = from.getBoundingClientRect(), dpr = devicePixelRatio || 1, cv = document.createElement("canvas"), cx = cv.getContext("2d");
+  cv.className = "fx"; cv.width = box.width * dpr; cv.height = box.height * dpr; host.append(cv); cx.scale(dpr, dpr);
+  const css = getComputedStyle(document.documentElement), cols = [css.getPropertyValue("--ball"), css.getPropertyValue("--ball"), css.getPropertyValue("--accent")];
+  const x0 = o.left + o.width / 2 - box.left, y0 = o.top + o.height / 2 - box.top, floor = box.height - 6;
+  const ps = Array.from({ length: 36 }, (_, i) => ({ x: x0, y: y0, vx: (Math.random() - .5) * 10, vy: -3 - Math.random() * 9, r: 3 + Math.random() * 5, c: cols[i % 3].trim() }));
+  let t = 0;
+  const tick = () => {
+    cx.clearRect(0, 0, box.width, box.height); t++;
+    cx.globalAlpha = Math.max(0, 1 - t / 90);
+    ps.forEach(p => {
+      p.vy += .35; p.x += p.vx; p.y += p.vy;
+      if (p.y > floor - p.r) { p.y = floor - p.r; p.vy *= -.5; p.vx *= .8; }
+      cx.fillStyle = p.c; cx.beginPath(); cx.arc(p.x, p.y, p.r, 0, 7); cx.fill();
+    });
+    if (t < 90) requestAnimationFrame(tick); else cv.remove();
+  };
+  requestAnimationFrame(tick);
+}
+// სექციები რბილად ჩნდება სქროლისას; ტრენერის ფოტო იხრება მაუსზე
+function initMotion() {
+  if (RM.matches) return;
+  const facts = () => document.querySelectorAll(".facts b").forEach(b => countUp(b, 700));
+  if ("IntersectionObserver" in window) {
+    const io = new IntersectionObserver(es => es.forEach(e => {
+      if (!e.isIntersecting) return;
+      e.target.classList.add("in"); io.unobserve(e.target);
+      if (e.target.id === "about") facts();
+    }), { rootMargin: "0px 0px -8% 0px" });
+    document.querySelectorAll("#viewHome > section").forEach(s => {
+      if (!$("viewHome").hidden && s.getBoundingClientRect().top > innerHeight) { s.classList.add("reveal"); io.observe(s); }
+      else if (s.id === "about") facts();
+    });
+  }
+  const ph = document.querySelector(".coach .ph");
+  if (ph && matchMedia("(hover: hover) and (pointer: fine)").matches) {
+    ph.addEventListener("pointermove", e => {
+      const r = ph.getBoundingClientRect(), x = (e.clientX - r.left) / r.width, y = (e.clientY - r.top) / r.height;
+      ph.classList.add("tilting");
+      ph.style.transform = `perspective(700px) rotateY(${(x - .5) * 14}deg) rotateX(${(.5 - y) * 14}deg)`;
+      ph.style.setProperty("--mx", x * 100 + "%"); ph.style.setProperty("--my", y * 100 + "%");
+    });
+    ph.addEventListener("pointerleave", () => { ph.classList.remove("tilting"); ph.style.transform = ""; });
+  }
+}
+
 /* ---------- Prices ---------- */
 const peopleIcon = n => '<span class="people" aria-hidden="true">' + "<i></i>".repeat(n) + "</span>";
 let priceM = 60;
-function renderPrices(m) {
+function renderPrices(m, anim) {
   priceM = m;
   $("priceLbl").textContent = L("ინდივიდუალური · ", "Individual · ") + durLong(m);
   $("priceDur").innerHTML = Object.keys(DUR_PRICES).map(k =>
     `<button type="button" class="chip-btn" data-m="${k}" aria-pressed="${+k === m}">${durText(+k)}</button>`).join("");
   $("priceRows").innerHTML = Object.entries(DUR_PRICES[m]).map(([n, p]) =>
-    `<div class="ptile">${peopleIcon(+n)}<span class="pn">${L(n + " ადამ.", ppl(n))}</span><b>${p} ₾</b><span class="pp">${Math.round(p / n)} ₾ / ${L("ადამ.", "person")}</span></div>`).join("");
+    `<div class="ptile" style="--i:${n}">${peopleIcon(+n)}<span class="pn">${L(n + " ადამ.", ppl(n))}</span><b${anim ? ' class="roll"' : ""}>${p} ₾</b><span class="pp${anim ? " roll" : ""}">${Math.round(p / n)} ₾ / ${L("ადამ.", "person")}</span></div>`).join("");
 }
-$("priceDur").addEventListener("click", e => { const b = e.target.closest("[data-m]"); if (b) renderPrices(+b.dataset.m); });
+$("priceDur").addEventListener("click", e => { const b = e.target.closest("[data-m]"); if (b && +b.dataset.m !== priceM) renderPrices(+b.dataset.m, true); });
 renderPrices(60);
 
 /* ---------- Schedule ---------- */
 let counts = saved("gv_c");
 const daysEl = $("days");
 let selDay = null;
+const seenCounts = {};
 function freeIn(day) { return day.hours.reduce((s, h) => s + Math.max(0, CAPACITY - (counts[gid(day, h)] || 0)), 0); }
 function myGroups() {
   return {
@@ -1059,7 +1178,7 @@ function renderSchedule() {
   const sel = SCHEDULE.find(d => d.key === selDay);
   const card = (day, i) => {
     const free = counts ? freeIn(day) : null;
-    const info = free == null ? L("იტვირთება…", "Loading…") : free ? `<span class="free">${L(`${free} თავისუფალი ადგილი`, `${free} free ${free === 1 ? "spot" : "spots"}`)}</span>` : `<span class="none">${L("ყველა ჯგუფი სავსეა", "All groups are full")}</span>`;
+    const info = free == null ? `<span class="sk">${L("იტვირთება…", "Loading…")}</span>` : free ? `<span class="free">${L(`${free} თავისუფალი ადგილი`, `${free} free ${free === 1 ? "spot" : "spots"}`)}</span>` : `<span class="none">${L("ყველა ჯგუფი სავსეა", "All groups are full")}</span>`;
     return `<button type="button" class="dayb" style="order:${i * 2}" data-day="${day.key}" aria-expanded="${day.key === selDay}" aria-controls="dayPanel">
       <b>${dayT(day, "title")}</b>
       <span class="meta"><span>${day.hours.length} ${L("ჯგუფი", "groups")} · ${info}</span><span class="arr" aria-hidden="true">⌄</span></span>
@@ -1073,15 +1192,17 @@ function slotHtml(day, h, mine, pend = new Set(), wait = new Set()) {
   const id = gid(day, h);
   const time = `<div class="time">${h}<small>${L(endOf(h) + "-მდე", "until " + endOf(h))}</small></div>`;
   if (!counts) {
-    return `<div class="slot loading">${time}<div class="seats"><div class="dots">${"<i></i>".repeat(CAPACITY)}</div><span class="txt">${L("იტვირთება…", "Loading…")}</span></div><button class="btn btn-primary" disabled>${L("ჩაწერა", "Book")}</button></div>`;
+    return `<div class="slot loading">${time}<div class="seats"><div class="dots">${"<i></i>".repeat(CAPACITY)}</div><span class="txt sk">${L("იტვირთება…", "Loading…")}</span></div><button class="btn btn-primary" disabled>${L("ჩაწერა", "Book")}</button></div>`;
   }
   const c = Math.min(counts[id] || 0, CAPACITY), free = CAPACITY - c, full = free <= 0, isMine = mine.has(id);
+  // ახლად დაკავებული ადგილი „ახტება“
+  const prev = seenCounts[id] ?? c; seenCounts[id] = c;
   const waiting = !isMine && full && wait.has(id);
   const txt = isMine ? (pend.has(id) ? L("შენი ადგილი · გადახდის მოლოდინში", "Your spot · awaiting payment") : L("შენი ჯგუფი", "Your group")) : waiting ? L("სავსეა · მოლოდინის სიაში ხარ", "Full · you're on the waiting list")
     : full ? `${CAPACITY} / ${CAPACITY} · ${L("ჯგუფი სავსეა", "group is full")}` : `${c} / ${CAPACITY} ${L("ადგილი დაკავებულია", "spots taken")}`;
   return `<div class="slot${full ? " is-full" : ""}${isMine ? " mine" : ""}">${time}
     <div class="seats">
-      <div class="dots" aria-hidden="true">${Array.from({ length: CAPACITY }, (_, i) => `<i class="${i < c ? "on" : ""}"></i>`).join("")}</div>
+      <div class="dots" aria-hidden="true">${Array.from({ length: CAPACITY }, (_, i) => `<i class="${i < c ? "on" : ""}${i >= prev && i < c ? " pop" : ""}"></i>`).join("")}</div>
       <span class="txt${free === 1 && !isMine ? " few" : ""}">${txt}</span>
     </div>
     ${isMine || waiting ? `<a class="btn btn-ghost" href="#cabinet">${L("კაბინეტი", "Account")}</a>`
@@ -1197,6 +1318,7 @@ grpForm.addEventListener("submit", async e => {
         await refreshProfile();
         grpForm.querySelectorAll("[data-pre-pay]").forEach(el => (el.hidden = true));
         $("dlgSeats").textContent = L(`რიგში ${res.position}-ე ხარ`, `You're #${res.position} in line`);
+        burst($("dlgSeats"));
         say(grpMsg, L("დაგამატე მოლოდინის სიაში. როგორც კი ადგილი გათავისუფლდება, დაგიკავშირდები.", "You're on the waiting list. I'll get in touch as soon as a spot opens up."), "ok");
         grpBtn.hidden = true;
       } else if (res.error === "not_full") {
@@ -1222,6 +1344,7 @@ grpForm.addEventListener("submit", async e => {
         `Now transfer ${GROUP_PRICE} ₾ to this account. Once I confirm the payment you're enrolled. You can check the status in your account.`);
       $("payBox").innerHTML = payHtml(purposeFor(profile?.name || typed, currentGroup));
       grpBtn.hidden = true;
+      burst($("dlgSeats"));
     } else { afterAuthFail(res); say(grpMsg, errText(res.error), "err"); }
     renderSchedule();
   } catch (err) { say(grpMsg, errText(), "err"); }
@@ -1233,15 +1356,20 @@ const seg = $("seg"), durSeg = $("durSeg");
 durSeg.innerHTML = Object.keys(DUR_PRICES).map(m =>
   `<input type="radio" name="dur" id="d${m}" value="${m}" ${m === "60" ? "checked" : ""}><label for="d${m}"><b>${durText(+m)}</b></label>`).join("");
 const curDur = () => +durSeg.querySelector("input:checked").value;
-function renderPeople() {
+function renderPeople(anim) {
   const n = (seg.querySelector("input:checked") || {}).value || "1", P = DUR_PRICES[curDur()];
   seg.innerHTML = Object.entries(P).map(([k, p]) =>
-    `<input type="radio" name="people" id="p${k}" value="${k}" ${k === n ? "checked" : ""}><label for="p${k}"><b>${k}</b><span>${p} ₾</span></label>`).join("");
-  $("indTotal").textContent = P[n] + " ₾";
+    `<input type="radio" name="people" id="p${k}" value="${k}" ${k === n ? "checked" : ""}><label for="p${k}"><b>${k}</b><span${anim ? ` class="roll" style="--i:${k}"` : ""}>${p} ₾</span></label>`).join("");
+  setTotal(P[n], anim);
+}
+function setTotal(v, anim) {
+  const t = $("indTotal");
+  t.textContent = v + " ₾";
+  if (anim) { t.classList.remove("roll"); void t.offsetWidth; t.classList.add("roll"); }
 }
 renderPeople();
-seg.addEventListener("change", () => { $("indTotal").textContent = DUR_PRICES[curDur()][seg.querySelector("input:checked").value] + " ₾"; });
-durSeg.addEventListener("change", () => { renderPeople(); fillTimes(); });
+seg.addEventListener("change", () => setTotal(DUR_PRICES[curDur()][seg.querySelector("input:checked").value], true));
+durSeg.addEventListener("change", () => { renderPeople(true); fillTimes(); });
 const timeSel = $("indTime");
 const ALL_HOURS = Array.from({ length: 15 }, (_, i) => `${pad(i + 8)}:00`);
 // მხოლოდ ის საათები, საიდანაც არჩეული ხანგრძლივობა 23:00-მდე სრულდება
@@ -1260,6 +1388,7 @@ $("indForm").addEventListener("submit", async e => {
   if (!document.querySelector('input[name="exp"]:checked')) return say(msg, errText("experience"), "err");
   if (!sToken) { openLogin("register", true); return say(msg, errText("login_required"), "err"); }
   btn.disabled = true; btn.textContent = L("იგზავნება…", "Sending…");
+  let sent = false;
   try {
     const res = await api({
       action: "individual", people: +seg.querySelector("input:checked").value, duration: curDur(),
@@ -1271,9 +1400,14 @@ $("indForm").addEventListener("submit", async e => {
       $("indForm").reset(); $("d60").checked = true; $("p1").checked = true; renderPeople(); fillTimes();
       await refreshProfile();
       say(msg, L("მოთხოვნა მიღებულია! დაგიკავშირდები დროის დასადასტურებლად. სტატუსს კაბინეტში ნახავ.", "Request received! I'll get in touch to confirm the time. You can check the status in your account."), "ok");
+      sent = true;
     } else { afterAuthFail(res); say(msg, errText(res.error), "err"); }
   } catch (err) { say(msg, errText(), "err"); }
-  btn.disabled = false; btn.textContent = L("მოთხოვნის გაგზავნა", "Send request");
+  const done = () => { btn.disabled = false; btn.classList.remove("sent"); btn.textContent = L("მოთხოვნის გაგზავნა", "Send request"); };
+  if (!sent) return done();
+  btn.classList.add("sent"); btn.textContent = "✓ " + L("გაიგზავნა", "Sent");
+  burst(btn);
+  setTimeout(done, 2500);
 });
 
 /* ---------- Cabinet ---------- */
@@ -1286,10 +1420,16 @@ async function refreshProfile() {
   } catch (e) {}
 }
 async function loadProfile() {
+  cabAnim = true;
   if (profile) renderCabinet();
+  else {
+    $("cabStats").innerHTML = '<div class="stat"><b class="sk">00</b><span class="sk">…</span></div>'.repeat(3);
+    $("cabUpcoming").innerHTML = skelHtml(2);
+  }
   await refreshProfile();
   if (profile) renderCabinet();
   else say($("cabErr"), L("კაბინეტი ვერ ჩაიტვირთა. სცადე თავიდან.", "Couldn't load your account. Please try again."), "err");
+  cabAnim = false;
 }
 
 function upcomingItems(p) {
@@ -1348,6 +1488,7 @@ function renderCabinet() {
     </div>`;
   }).join("") : `<p class="empty">${L('დაგეგმილი ვარჯიში არ გაქვს. <a href="#groups">ჩაეწერე ჯგუფში</a> ან <a href="#individual">დაჯავშნე ინდივიდუალური</a>.', 'You have no sessions planned. <a href="#groups">Join a group</a> or <a href="#individual">book an individual session</a>.')}</p>`;
 
+  if (cabAnim) $("cabStats").querySelectorAll(".stat b:not(.nx)").forEach(b => countUp(b));
   const passes = p.memberships.map(m => {
     const ml = gLabel(m.group) || m.label;
     if (m.pending) return `<div class="pass">
@@ -1358,8 +1499,13 @@ function renderCabinet() {
     const pct = m.purchased ? Math.min(100, Math.round(m.used / m.purchased * 100)) : 0, low = m.remaining <= 2;
     return `<div class="pass">
       <div class="ttl"><b>${esc(ml)}</b><span class="chip ${m.remaining === 0 ? "no" : low ? "wait" : "acc"}">${m.remaining} ${L("დარჩა", "left")}</span></div>
-      <div class="used-txt"><b>${m.used} / ${m.purchased}</b> ${L("ვარჯიში გამოყენებულია", "sessions used")}</div>
-      <div class="pbar${low ? " low" : ""}" role="progressbar" aria-valuemin="0" aria-valuemax="${m.purchased}" aria-valuenow="${m.used}" aria-label="${L("აბონემენტის პროგრესი", "Pass progress")}"><i style="width:${pct}%"></i></div>
+      <div class="pring-row">
+        <div class="pring${low ? " low" : ""}${m.remaining === 0 ? " done" : ""}${cabAnim ? " anim" : ""}" style="--p:${pct}" role="progressbar" aria-valuemin="0" aria-valuemax="${m.purchased}" aria-valuenow="${m.used}" aria-label="${L("აბონემენტის პროგრესი", "Pass progress")}">
+          <svg viewBox="0 0 44 44" aria-hidden="true"><circle class="bg" cx="22" cy="22" r="19"/><circle class="fg" cx="22" cy="22" r="19" pathLength="100"/></svg>
+          <b>${m.used}<small>/${m.purchased}</small></b>
+        </div>
+        <div class="used-txt">${L("ვარჯიში გამოყენებულია", "sessions used")}</div>
+      </div>
       <div class="nums"><span>${pct}%</span><span>${m.since ? L("წევრი " + niceDate(m.since).split(",")[0] + "-დან", "member since " + niceDate(m.since).split(",")[0]) : ""}</span></div>
       ${m.renew ? `<div class="renew"><b>${L("გაგრძელების მოთხოვნა გაგზავნილია ✓", "Renewal request sent ✓")}</b><span class="hint" style="font-size:13px">${L(`გადარიცხე ${GROUP_PRICE} ₾ და ჩარიცხვის დადასტურების შემდეგ აბონემენტს დაემატება ${PASS} ვარჯიში.`, `Transfer ${GROUP_PRICE} ₾ and once the payment is confirmed, ${PASS} sessions will be added to your pass.`)}</span>${payHtml(purposeFor(p.name, m.group) + L(" · გაგრძელება", " · renewal"))}</div>`
         : low ? `<div class="renew"><b>${m.remaining === 0 ? L("აბონემენტი ამოიწურა", "Your pass has run out") : L(`დარჩა ${m.remaining} ვარჯიში`, `${m.remaining} ${m.remaining === 1 ? "session" : "sessions"} left`)}</b><span class="hint" style="font-size:13px">${L(`გააგრძელე და იგივე ჯგუფში ადგილი შეგინარჩუნდება: ${GROUP_PRICE} ₾ = ${PASS} ვარჯიში.`, `Renew to keep your spot in the same group: ${GROUP_PRICE} ₾ = ${PASS} sessions.`)}</span><button class="btn btn-primary btn-sm" type="button" data-renew="${esc(m.id)}">${L("აბონემენტის გაგრძელება", "Renew pass")}</button></div>` : ""}
@@ -1502,7 +1648,7 @@ $("dDate").addEventListener("change", e => e.target.value && setDate(e.target.va
 async function loadDay() {
   $("dDate").value = trDate;
   $("dWd").textContent = WD[parseYmd(trDate).getDay()] + (trDate === todayStr() ? " · დღეს" : "");
-  $("sessions").innerHTML = `<p class="empty">იტვირთება…</p>`;
+  $("sessions").innerHTML = skelHtml(2);
   try {
     const res = await api({ action: "admin_day", token: aToken, date: trDate });
     if (!res.ok) return trFail(res);
@@ -1624,7 +1770,7 @@ async function fetchStats(from, to) {
 async function loadStats() {
   const t = todayStr(), from = [monthStart(), addDays(t, -6)].sort()[0];
   if (!$("stFrom").value) { $("stFrom").value = monthStart(); $("stTo").value = t; }
-  if (!stAll) $("stList").innerHTML = `<p class="empty">იტვირთება…</p>`;
+  if (!stAll) $("stList").innerHTML = skelHtml(3);
   try {
     const rows = await fetchStats(from, t);
     if (rows) { stAll = rows; renderStats(); }
@@ -1713,7 +1859,7 @@ $("reqList").addEventListener("click", async e => {
 
 // Members
 async function loadMembers() {
-  $("memList").innerHTML = `<p class="empty">იტვირთება…</p>`;
+  $("memList").innerHTML = skelHtml(3);
   try {
     const res = await api({ action: "admin_members", token: aToken });
     if (!res.ok) return trFail(res);
@@ -1781,7 +1927,7 @@ $("memList").addEventListener("click", async e => {
 // Registered students database
 let dbRows = [];
 async function loadStudents() {
-  $("dbList").innerHTML = `<p class="empty">იტვირთება…</p>`;
+  $("dbList").innerHTML = skelHtml(4);
   try {
     const res = await api({ action: "admin_students", token: aToken });
     if (!res.ok) return trFail(res);
@@ -2048,6 +2194,7 @@ renderSchedule();
 loadCounts();
 refreshProfile();
 route();
+initMotion();
 setInterval(loadCounts, 60000);
 </script>
 </body>
