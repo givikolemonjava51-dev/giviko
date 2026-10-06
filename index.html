@@ -1786,7 +1786,7 @@ async function loadDay() {
 }
 // იგივე ტექსტი, რაც Code.gs-ის შეხსენებაში
 const remindText = (name, date, time) => `გამარჯობა ${String(name || "").split(" ")[0]}! შეგახსენებ, ${date === todayStr() ? "დღეს" : date === addDays(todayStr(), 1) ? "ხვალ" : niceDate(date)} ${time}-ზე პადელის ვარჯიში გვაქვს. Padelbade Krtsanisi, გიორგი გურამიშვილის ქ. 7. თუ ვერ მოდიხარ, გააუქმე კაბინეტიდან ან მომწერე. Giviko`;
-const okWaText = r => `გამარჯობა ${String(r.name || "").split(" ")[0]}! ვარჯიში: ${niceDate(r.date)}, ${r.time}-${endTime(r.time, rDur(r))}, ${r.price} ₾. დასადასტურებლად გადმორიცხე ${r.price} ₾ ამ ანგარიშზე: ${BANK.iban} (${BANK.name}). ჩარიცხვისთანავე ვარჯიში დაიჯავშნება. Padelbade Krtsanisi. Giviko`;
+const okWaText = r => `გამარჯობა, ${String(r.name || "").split(" ")[0]}! ვარჯიში: ${niceDate(r.date)}, ${r.time}-${endTime(r.time, rDur(r))}, Padelbade Krtsanisi - ${r.price} ₾\n\nდასადასტურებლად გადმორიცხე ${r.price} ₾ ამ ანგარიშზე: #${BANK.iban} (${BANK.name}).\n\nვარჯიში დაიჯავშნება ჩარიცხვისთანავე`;
 const payWaText = (name, label) => `გამარჯობა ${String(name || "").split(" ")[0]}! გადახდა მივიღე, ჩარიცხული ხარ ჯგუფში: ${label} (${PASS} გაკვეთილი). Padelbade Krtsanisi, გიორგი გურამიშვილის ქ. 7. შევხვდებით ვარჯიშზე! Giviko`;
 const fbWaText = (name, date, text) => `გამარჯობა ${String(name || "").split(" ")[0]}! ფიდბექი ${niceDate(date)}-ის ვარჯიშზე:\n\n${text}\n\nGiviko`;
 // keep = true: მონიშნული, მაგრამ ჯერ შეუნახავი დასწრება არ იკარგება

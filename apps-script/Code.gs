@@ -8,6 +8,8 @@ const ADMIN_PASSWORD = "";     // ტრენერის პანელის
 const NOTIFY_EMAIL = "";       // მეილი, სადაც მოთხოვნები მოვა
 const WHATSAPP_PHONE = "";     // WhatsApp ნომერი 995-ით, მაგ. "995555123456"
 const CALLMEBOT_APIKEY = "";   // CallMeBot-ის გასაღები
+const BANK_IBAN = "GE62TB7243645064300033"; // ანგარიში, რომელიც ინდივიდუალური ვარჯიშის მეილში წერია
+const BANK_NAME = "გივი ლემონჯავა";
 
 /* ---------- საიტის პარამეტრები (ემთხვევა index.html-ს) ---------- */
 const TZ = "Asia/Tbilisi";
@@ -653,35 +655,47 @@ function niceDate_(s, en) {
 }
 const escHtml_ = v => String(v ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
-function mailConfirm_(s, kind, x, moved) {
-  if (!s || !s.email) return false;
-  const en = s.lang === "en", T = (ka, eng) => (en ? eng : ka), first = String(s.name || "").trim().split(" ")[0];
-  let subject, intro, rows;
-  if (kind === "individual") {
-    subject = moved ? T("ვარჯიშის დრო შეიცვალა", "Your training time has changed") : T("ვარჯიში დადასტურებულია ✓", "Your training is confirmed ✓");
-    intro = moved ? T("შენი ინდივიდუალური ვარჯიშის დრო შეიცვალა. ახალი დრო:", "The time of your individual training has changed. New time:")
-      : T("შენი ინდივიდუალური ვარჯიში დადასტურებულია.", "Your individual training is confirmed.");
-    rows = [[T("თარიღი", "Date"), niceDate_(x.date, en)], [T("დრო", "Time"), x.time + "–" + endTime_(x)], [T("ხანგრძლივობა", "Duration"), (dur_(x) / 60) + T(" სთ", " h")],
-      [T("ადამიანი", "People"), x.people], [T("ფასი", "Price"), x.price + " ₾"], [T("ადგილი", "Place"), PLACE]];
-  } else {
-    const G = GROUPS[x.group];
-    subject = T("ჯგუფში ჩარიცხვა დადასტურებულია ✓", "You're in the group ✓");
-    intro = T("გადახდა მივიღე, ჯგუფში ჩარიცხული ხარ.", "I've received your payment, you're in the group.");
-    rows = [[T("ჯგუფი", "Group"), G.label], [T("აბონემენტი", "Pass"), x.purchased + T(" ვარჯიში", " sessions")], [T("ადგილი", "Place"), PLACE]];
-  }
-  const outro = T("თუ ვერ მოდიხარ, გააუქმე კაბინეტიდან ან უპასუხე ამ მეილს.", "If you can't make it, cancel in your account or reply to this email.");
-  const hi = T("გამარჯობა", "Hi") + " " + first + "!";
-  const body = [hi, "", intro, "", ...rows.map(r => r[0] + ": " + r[1]), "", outro, "", "Giviko"].join("\n");
-  const html = `<div style="font-family:Arial,sans-serif;font-size:15px;line-height:1.5;color:#1d2a2a">
-<p>${escHtml_(hi)}</p><p>${escHtml_(intro)}</p>
-<table style="border-collapse:collapse">${rows.map(r => `<tr><td style="padding:4px 16px 4px 0;color:#667">${escHtml_(r[0])}</td><td style="padding:4px 0"><b>${escHtml_(r[1])}</b></td></tr>`).join("")}</table>
-<p>${escHtml_(outro)}</p><p>Giviko</p></div>`;
+const MON_KA_SHORT_ = ["იან", "თებ", "მარ", "აპრ", "მაი", "ივნ", "ივლ", "აგვ", "სექ", "ოქტ", "ნოე", "დეკ"];
+const MON_EN_SHORT_ = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+function sendStudentMail_(to, subject, lines) {
+  const body = lines.join("\n");
+  const html = `<div style="font-family:Arial,sans-serif;font-size:15px;line-height:1.5;color:#1d2a2a">${lines.map(l => l ? `<p style="margin:0">${escHtml_(l)}</p>` : "<br>").join("")}</div>`;
   try {
-    const opts = { to: s.email, subject, body, htmlBody: html, name: "Giviko" };
+    const opts = { to, subject, body, htmlBody: html, name: "Giviko" };
     if (NOTIFY_EMAIL) opts.replyTo = NOTIFY_EMAIL;
     MailApp.sendEmail(opts);
     return true;
   } catch (e) { console.error("student email failed: " + e); return false; }
+}
+
+function mailConfirm_(s, kind, x, moved) {
+  if (!s || !s.email) return false;
+  const en = s.lang === "en", T = (ka, eng) => (en ? eng : ka), first = String(s.name || "").trim().split(" ")[0];
+  if (kind === "individual") {
+    // ტექსტი ზუსტად ემთხვევა პანელის „WhatsApp დასტური“ ღილაკის ტექსტს (okWaText, index.html)
+    const [, m, d] = x.date.split("-").map(Number), w = weekday_(x.date);
+    const when = en ? `${WD_EN_[w]}, ${MON_EN_SHORT_[m - 1]} ${d}` : `${d} ${MON_KA_SHORT_[m - 1]}, ${WD_KA_[w]}`;
+    const subject = moved ? T("ვარჯიშის დრო შეიცვალა", "Your training time has changed") : T("ვარჯიშის ჯავშანი", "Your training booking");
+    return sendStudentMail_(s.email, subject, en ? [
+      `Hi, ${first}! Training: ${when}, ${x.time}-${endTime_(x)}, Padelbade Krtsanisi - ${x.price} ₾`, "",
+      `To confirm, transfer ${x.price} ₾ to this account: #${BANK_IBAN} (${BANK_NAME}).`, "",
+      "Your training is booked as soon as the payment arrives",
+    ] : [
+      `გამარჯობა, ${first}! ვარჯიში: ${when}, ${x.time}-${endTime_(x)}, Padelbade Krtsanisi - ${x.price} ₾`, "",
+      `დასადასტურებლად გადმორიცხე ${x.price} ₾ ამ ანგარიშზე: #${BANK_IBAN} (${BANK_NAME}).`, "",
+      "ვარჯიში დაიჯავშნება ჩარიცხვისთანავე",
+    ]);
+  }
+  const G = GROUPS[x.group];
+  return sendStudentMail_(s.email, T("ჯგუფში ჩარიცხვა დადასტურებულია ✓", "You're in the group ✓"), [
+    T("გამარჯობა", "Hi") + ", " + first + "!", "",
+    T("გადახდა მივიღე, ჯგუფში ჩარიცხული ხარ.", "I've received your payment, you're in the group."), "",
+    T("ჯგუფი", "Group") + ": " + G.label,
+    T("აბონემენტი", "Pass") + ": " + x.purchased + T(" გაკვეთილი", " lessons"),
+    T("ადგილი", "Place") + ": " + PLACE, "",
+    "Giviko",
+  ]);
 }
 
 /* ---------- შეხსენებები: ვარჯიშამდე 24 და 2 საათით ადრე ----------
