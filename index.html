@@ -95,6 +95,9 @@ section { padding-block: 32px; }
 .pcard, .prices .sub { padding: 18px 20px; }
 .ptiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 12px; }
 .ptile { display: grid; gap: 2px; padding: 12px; background: var(--bg); border: 1px solid var(--line); border-radius: 12px; font-variant-numeric: tabular-nums; }
+.ptile, #groupPriceCard { cursor: pointer; transition: border-color .2s ease, transform .2s ease; }
+.ptile:hover, .ptile:focus-visible { border-color: var(--accent); transform: translateY(-2px); }
+#groupPriceCard:hover, #groupPriceCard:focus-visible { transform: translateY(-2px); }
 .ptile .people { margin: 0 0 4px; }
 .ptile .people i { width: 7px; height: 12px; }
 .ptile .pn { font-size: 13px; color: var(--muted); }
@@ -575,7 +578,7 @@ table.hist td.n { text-align: right; white-space: nowrap; }
         </div>
         <div class="ptiles" id="priceRows"></div>
       </div>
-      <div class="card sub">
+      <div class="card sub" id="groupPriceCard" role="button" tabindex="0" aria-label="ჯგუფური აბონემენტი · ჯგუფის არჩევა" data-en-aria-label="Group pass · pick a group">
         <div class="label" data-en="Group pass">ჯგუფური აბონემენტი</div>
         <div class="big">400<small> ₾</small></div>
         <p class="pass-n" data-en="&lt;b&gt;8 lessons&lt;/b&gt; included">ფასში შედის <b>8 გაკვეთილი</b></p>
@@ -1266,7 +1269,7 @@ function renderPrices(m, anim) {
   $("priceDur").innerHTML = DURS.map(k =>
     `<button type="button" class="chip-btn" data-m="${k}" aria-pressed="${k === m}">${durText(k)}</button>`).join("");
   $("priceRows").innerHTML = Object.keys(IND_PRICES).map(n => { const p = durPrice(m, n);
-    return `<div class="ptile" style="--i:${n}">${peopleIcon(+n)}<span class="pn">${L(n + " ადამ.", ppl(n))}</span><b${anim ? ' class="roll"' : ""}>${p} ₾</b><span class="pp${anim ? " roll" : ""}">${Math.round(p / n)} ₾ / ${L("ადამ.", "person")}</span></div>`; }).join("");
+    return `<div class="ptile" style="--i:${n}" role="button" tabindex="0" data-ppl="${n}" aria-label="${L(`${ppl(n)}, ${durText(m)} · ${p} ₾ · ჩაწერა`, `${ppl(n)}, ${durText(m)} · ${p} ₾ · book`)}">${peopleIcon(+n)}<span class="pn">${L(n + " ადამ.", ppl(n))}</span><b${anim ? ' class="roll"' : ""}>${p} ₾</b><span class="pp${anim ? " roll" : ""}">${Math.round(p / n)} ₾ / ${L("ადამ.", "person")}</span></div>`; }).join("");
 }
 const off = p => Math.round((1 - p.price / p.old) * 100);
 const packTimes = t => t === "day" ? L("ორშაბათი-პარასკევი 18:00-მდე", "Monday-Friday before 18:00")
@@ -1302,6 +1305,17 @@ $("packRows").addEventListener("click", e => {
   renderPacks();
   if (openPack >= 0) $("packRows").children[openPack].scrollIntoView({ block: "nearest", behavior: "smooth" });
 });
+// ფასის ბარათზე დაჭერა: ინდივიდუალურზე ჩაწერის ფორმაში იგივე ხანგრძლივობით და ადამიანებით, ჯგუფურზე განრიგში
+const goTo = id => { const el = $(id), top = el.getBoundingClientRect().top + scrollY - (document.querySelector("header.top")?.offsetHeight || 72) - 8; scrollTo({ top, behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" }); };
+function pickIndividual(n) {
+  $("d" + priceM).checked = true; fillTimes();
+  renderPeople(); $("p" + n).checked = true; setTotal(priceText(curDur(), n), true);
+  goTo("individual");
+}
+$("priceRows").addEventListener("click", e => { const t = e.target.closest("[data-ppl]"); if (t) pickIndividual(t.dataset.ppl); });
+$("priceRows").addEventListener("keydown", e => { const t = e.target.closest("[data-ppl]"); if (t && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); pickIndividual(t.dataset.ppl); } });
+$("groupPriceCard").addEventListener("click", () => goTo("groups"));
+$("groupPriceCard").addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); goTo("groups"); } });
 $("priceDur").addEventListener("click", e => { const b = e.target.closest("[data-m]"); if (b && +b.dataset.m !== priceM) renderPrices(+b.dataset.m, true); });
 renderPrices(60); renderPacks();
 $("packToggle").addEventListener("click", e => {
