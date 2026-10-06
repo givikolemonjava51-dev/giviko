@@ -615,7 +615,7 @@ table.hist td.n { text-align: right; white-space: nowrap; }
           </div>
         </fieldset>
         <div class="total"><span data-en="Total to pay">სულ გადასახდელი</span><b id="indTotal">140 ₾</b></div>
-        <button class="btn btn-primary" type="submit" id="indBtn" data-en="Send request">მოთხოვნის გაგზავნა</button>
+        <button class="btn btn-primary" type="submit" id="indBtn" data-en="Book training">ვარჯიშზე ჩაწერა</button>
         <p class="msg" id="indMsg" role="status"></p>
       </form>
     </div>
@@ -1502,7 +1502,7 @@ $("indForm").addEventListener("submit", async e => {
       sent = true;
     } else { afterAuthFail(res); say(msg, errText(res.error), "err"); }
   } catch (err) { say(msg, errText(), "err"); }
-  const done = () => { btn.disabled = false; btn.classList.remove("sent"); btn.textContent = L("მოთხოვნის გაგზავნა", "Send request"); };
+  const done = () => { btn.disabled = false; btn.classList.remove("sent"); btn.textContent = L("ვარჯიშზე ჩაწერა", "Book training"); };
   if (!sent) return done();
   btn.classList.add("sent"); btn.textContent = "✓ " + L("გაიგზავნა", "Sent");
   burst(btn);
