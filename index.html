@@ -23,6 +23,7 @@
   --accent: #2EC4B6;
   --accent-ink: #0B1418;
   --accent-soft: #12302F;
+  --sale: #E8452C;
   --warn: #F2A541;
   --full: #4A5F69;
   --ok: #4ADE80;
@@ -103,7 +104,11 @@ section { padding-block: 32px; }
 .packs { padding: 18px 20px; margin-bottom: 24px; }
 #packToggle[aria-expanded="true"] { border-color: var(--accent); }
 .pack-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 12px; }
-.pack { display: grid; gap: 4px; align-content: start; padding: 14px; background: var(--bg); border: 1px solid var(--line); border-radius: 12px; }
+.sale { display: inline-block; padding: 2px 8px; border-radius: 999px; background: var(--sale); color: #fff; font-size: 12px; font-weight: 800; white-space: nowrap; }
+#packToggle { display: inline-flex; align-items: center; gap: 6px; }
+.pack .sale { position: absolute; top: 12px; right: 12px; font-size: 14px; }
+.pack > .ptier-name { padding-right: 56px; }
+.pack { position: relative; display: grid; gap: 4px; align-content: start; padding: 14px; background: var(--bg); border: 1px solid var(--line); border-radius: 12px; }
 .pack-n { font-weight: 700; display: flex; align-items: center; gap: 8px; }
 .pack-n .people { margin: 0; }
 .pack-price { font-variant-numeric: tabular-nums; }
@@ -583,7 +588,7 @@ table.hist td.n { text-align: right; white-space: nowrap; }
 
   <section id="individual">
     <div class="sec-head"><h2 data-en="Individual training">ინდივიდუალური ვარჯიში</h2>
-      <button class="btn btn-ghost btn-sm" type="button" id="packToggle" aria-expanded="false" aria-controls="packs" data-en="Individual packs">ინდივიდუალური პაკეტები</button></div>
+      <button class="btn btn-ghost btn-sm" type="button" id="packToggle" aria-expanded="false" aria-controls="packs"><span data-en="Individual packs">ინდივიდუალური პაკეტები</span> <span class="sale" id="packSale"></span></button></div>
     <div class="card packs" id="packs" hidden>
       <div class="label" data-en="Individual packs · 8 one-hour lessons">ინდივიდუალური პაკეტები · 8 ერთსაათიანი გაკვეთილი</div>
       <div class="pack-grid" id="packRows"></div>
@@ -1229,10 +1234,13 @@ function renderPrices(m, anim) {
   $("priceRows").innerHTML = Object.keys(IND_PRICES).map(n => { const p = durPrice(m, n);
     return `<div class="ptile" style="--i:${n}">${peopleIcon(+n)}<span class="pn">${L(n + " ადამ.", ppl(n))}</span><b${anim ? ' class="roll"' : ""}>${p} ₾</b><span class="pp${anim ? " roll" : ""}">${Math.round(p / n)} ₾ / ${L("ადამ.", "person")}</span></div>`; }).join("");
 }
+const off = p => Math.round((1 - p.price / p.old) * 100);
 function renderPacks() {
+  $("packSale").textContent = "🔥 " + L(`-${Math.max(...PACKS.map(off))}%-მდე`, `up to -${Math.max(...PACKS.map(off))}%`);
   $("packRows").innerHTML = PACKS.map(p => `<div class="pack">
     <div class="ptier-name">${tierName(p.tier)}</div>
     <div class="pack-n">${peopleIcon(p.people)} ${ppl(p.people)} · ${L(`${p.n} გაკვეთილი`, `${p.n} lessons`)}</div>
+    <span class="sale">-${off(p)}%</span>
     <div class="pack-price"><b>${p.price} ₾</b> <s>${p.old} ₾</s></div>
     <div class="pack-save">${L(`დაზოგე ${p.old - p.price} ₾ · ${Math.round(p.price / p.n)} ₾ ერთი გაკვეთილი`, `Save ${p.old - p.price} ₾ · ${Math.round(p.price / p.n)} ₾ per lesson`)}</div>
     <a class="btn btn-ghost btn-sm" target="_blank" rel="noopener" href="${waLink(COACH_PHONE, `გამარჯობა! მინდა ${p.n}-გაკვეთილიანი პაკეტი, ${p.people} ადამიანი (${tierName(p.tier)}) - ${p.price} ₾`)}">${L("პაკეტის შეძენა", "Get this pack")}</a>
