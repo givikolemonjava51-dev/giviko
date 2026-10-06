@@ -158,6 +158,7 @@ form { display: grid; gap: 16px; }
 .field { display: grid; gap: 6px; min-width: 0; }
 .field label, .field legend { font-size: 14px; font-weight: 600; }
 .hint { font-size: 12px; color: var(--muted); }
+.phone-warn { color: var(--warn); font-weight: 600; }
 input, select, textarea {
   font: inherit; color: var(--ink); background: var(--bg); border: 1.5px solid var(--line); border-radius: 10px;
   padding: 11px 12px; width: 100%; min-width: 0;
@@ -780,6 +781,7 @@ table.hist td.n { text-align: right; white-space: nowrap; }
     <div class="field" data-guest-only data-pre-pay>
       <label for="grpPhone" data-en="Phone">ტელეფონი</label>
       <input id="grpPhone" type="tel" inputmode="tel" autocomplete="tel" placeholder="5XX XX XX XX" maxlength="30">
+      <span class="hint phone-warn" data-en="⚠ Make sure the number is correct, or the coach won't be able to reach you.">⚠ აუცილებლად მიუთითე სწორი ნომერი, თორემ მწვრთნელი ვერ დაგიკავშირდება.</span>
     </div>
     <div class="field" data-guest-only data-pre-pay>
       <label for="grpEmail" data-en="Email (optional)">მეილი (არასავალდებულო)</label>
@@ -849,6 +851,7 @@ table.hist td.n { text-align: right; white-space: nowrap; }
     <div class="field">
       <label for="lgPhone" data-en="Phone">ტელეფონი</label>
       <input id="lgPhone" type="tel" inputmode="tel" autocomplete="tel" placeholder="5XX XX XX XX" maxlength="30">
+      <span class="hint phone-warn" data-reg-only hidden data-en="⚠ Make sure the number is correct, or the coach won't be able to reach you.">⚠ აუცილებლად მიუთითე სწორი ნომერი, თორემ მწვრთნელი ვერ დაგიკავშირდება.</span>
     </div>
     <div class="field" data-reg-only hidden>
       <label for="lgEmail" data-en="Email (optional)">მეილი (არასავალდებულო)</label>
@@ -1783,6 +1786,8 @@ async function loadDay() {
 }
 // იგივე ტექსტი, რაც Code.gs-ის შეხსენებაში
 const remindText = (name, date, time) => `გამარჯობა ${String(name || "").split(" ")[0]}! შეგახსენებ, ${date === todayStr() ? "დღეს" : date === addDays(todayStr(), 1) ? "ხვალ" : niceDate(date)} ${time}-ზე პადელის ვარჯიში გვაქვს. Padelbade Krtsanisi, გიორგი გურამიშვილის ქ. 7. თუ ვერ მოდიხარ, გააუქმე კაბინეტიდან ან მომწერე. Giviko`;
+const okWaText = r => `გამარჯობა ${String(r.name || "").split(" ")[0]}! შენი ინდივიდუალური ვარჯიში დადასტურებულია: ${niceDate(r.date)}, ${r.time}-${endTime(r.time, rDur(r))} (${r.people} ადამიანი · ${r.price} ₾). Padelbade Krtsanisi, გიორგი გურამიშვილის ქ. 7. თუ ვერ მოდიხარ, გააუქმე კაბინეტიდან ან მომწერე. Giviko`;
+const payWaText = (name, label) => `გამარჯობა ${String(name || "").split(" ")[0]}! გადახდა მივიღე, ჩარიცხული ხარ ჯგუფში: ${label} (${PASS} გაკვეთილი). Padelbade Krtsanisi, გიორგი გურამიშვილის ქ. 7. შევხვდებით ვარჯიშზე! Giviko`;
 const fbWaText = (name, date, text) => `გამარჯობა ${String(name || "").split(" ")[0]}! ფიდბექი ${niceDate(date)}-ის ვარჯიშზე:\n\n${text}\n\nGiviko`;
 // keep = true: მონიშნული, მაგრამ ჯერ შეუნახავი დასწრება არ იკარგება
 function renderDay(res, keep) {
@@ -1951,6 +1956,7 @@ function renderRequests(list, changes = []) {
         <div class="field"><label for="rd-${esc(r.id)}">დღე</label><input type="date" id="rd-${esc(r.id)}" value="${esc(r.date)}"></div>
         <div class="field"><label for="rt-${esc(r.id)}">დრო</label><input type="time" step="1800" id="rt-${esc(r.id)}" value="${esc(r.time)}"></div>
         <div class="btns">
+          ${r.status === "დადასტურებული" ? `<a class="wa-link" href="${waLink("995" + r.phone, okWaText(r))}" target="_blank" rel="noopener">WhatsApp დასტური</a>` : ""}
           <button class="btn btn-primary btn-sm" type="button" data-act="ok">${r.status === "ახალი" ? "დადასტურება" : "შენახვა"}</button>
           <button class="btn btn-danger btn-sm" type="button" data-act="cancel">გაუქმება</button>
         </div>
@@ -1980,7 +1986,7 @@ $("reqList").addEventListener("click", async e => {
     const res = await api(body);
     if (!res.ok) { b.disabled = false; return trFail(res); }
     renderRequests(res.requests, res.changes);
-    if (body.status === "დადასტურებული") say($("trErr"), res.emailed ? "დადასტურდა ✓ მოსწავლეს დასტურის მეილი გაეგზავნა." : "დადასტურდა ✓ მოსწავლეს მეილი არ აქვს მითითებული, დაუკავშირდი ტელეფონით.", "ok");
+    if (body.status === "დადასტურებული") say($("trErr"), (res.emailed ? "დადასტურდა ✓ მოსწავლეს დასტურის მეილი გაეგზავნა." : "დადასტურდა ✓ მოსწავლეს მეილი არ აქვს მითითებული.") + " WhatsApp-ით გასაგზავნად ბარათზე დააჭირე „WhatsApp დასტური“.", "ok");
   } catch (err) { b.disabled = false; say($("trErr"), errText(), "err"); }
 });
 
@@ -2047,7 +2053,11 @@ $("memList").addEventListener("click", async e => {
       : { action: "admin_cancel_member", token: aToken, member: id });
     if (!res.ok) { b.disabled = false; return trFail(res); }
     renderMembers(res.members, res.reserved, res.waitlist);
-    if (b.dataset.act === "pay") say($("trErr"), res.emailed ? "ჩაირიცხა ✓ მოსწავლეს დასტურის მეილი გაეგზავნა." : "ჩაირიცხა ✓ მოსწავლეს მეილი არ აქვს მითითებული.", "ok");
+    if (b.dataset.act === "pay") {
+      const m = (res.members || []).find(x => x.id === id);
+      say($("trErr"), res.emailed ? "ჩაირიცხა ✓ მოსწავლეს დასტურის მეილი გაეგზავნა." : "ჩაირიცხა ✓ მოსწავლეს მეილი არ აქვს მითითებული.", "ok");
+      if (m) $("trErr").insertAdjacentHTML("beforeend", ` <a class="wa-link" href="${waLink("995" + m.phone, payWaText(m.name, m.label))}" target="_blank" rel="noopener">WhatsApp დასტური</a>`);
+    }
     loadCounts();
   } catch (err) { b.disabled = false; say($("trErr"), errText(), "err"); }
 });
