@@ -113,6 +113,10 @@ section { padding-block: 32px; }
 .sub .big { font-family: var(--display); font-stretch: 62.5%; font-weight: 900; font-size: 52px; line-height: 1; }
 .sub .big small { font-size: 26px; }
 .sub p { margin: 0; opacity: .9; font-size: 14px; }
+.sub .pass-n { font-size: 17px; opacity: 1; }
+.sub .pass-rule { font-size: 13px; opacity: .85; }
+.pass-note { margin: -8px 0 18px; font-size: 14px; color: var(--muted); }
+.pass-note b { color: var(--ink); }
 .sub .math { font-family: var(--mono); font-size: 12px; opacity: .85; margin-top: auto; }
 
 /* Schedule */
@@ -542,7 +546,9 @@ table.hist td.n { text-align: right; white-space: nowrap; }
       <div class="card sub">
         <div class="label" data-en="Group pass">ჯგუფური აბონემენტი</div>
         <div class="big">400<small> ₾</small></div>
-        <p data-en="8 sessions · twice a week · max. 4 people">8 გაკვეთილი · კვირაში 2-ჯერ · მაქს. 4 ადამიანი</p>
+        <p class="pass-n" data-en="&lt;b&gt;8 lessons&lt;/b&gt; included">ფასში შედის <b>8 გაკვეთილი</b></p>
+        <p data-en="twice a week · max. 4 people">კვირაში 2-ჯერ · მაქს. 4 ადამიანი</p>
+        <p class="pass-rule" data-en="A missed lesson counts as held and is not made up.">გაცდენილი გაკვეთილი ჩატარებულად ითვლება და არ აღდგება.</p>
         <div class="math" data-en="= 50 ₾ per session">= 50 ₾ ერთი ვარჯიში</div>
       </div>
     </div>
@@ -556,6 +562,7 @@ table.hist td.n { text-align: right; white-space: nowrap; }
         <span><span class="dots"><i></i></span> <span data-en="free">თავისუფალი</span></span>
       </div>
     </div>
+    <p class="pass-note" data-en="Group pass: &lt;b&gt;400 ₾ = 8 lessons&lt;/b&gt; (twice a week). A missed lesson counts as held and is not made up.">ჯგუფური აბონემენტი: <b>400 ₾ = 8 გაკვეთილი</b> (კვირაში 2-ჯერ). გაცდენილი გაკვეთილი ჩატარებულად ითვლება და არ აღდგება.</p>
     <div class="days" id="days"></div>
     <p class="msg err" id="loadErr" hidden data-en="Couldn't load the schedule. Check your connection and refresh the page.">განრიგი ვერ ჩაიტვირთა. შეამოწმე ინტერნეტი და განაახლე გვერდი.</p>
   </section>
@@ -784,9 +791,10 @@ table.hist td.n { text-align: right; white-space: nowrap; }
       <span class="hint" data-en="Choose 4 digits. Already have an account? Enter your PIN.">მოიფიქრე 4 ციფრი. უკვე გაქვს ანგარიში? შეიყვანე შენი PIN.</span>
     </div>
     <p class="hint" id="waitText" hidden style="font-size:14px;margin:0" data-en="This group is full right now. Join the waiting list and I'll get in touch as soon as a spot opens up.">ეს ჯგუფი ახლა სავსეა. ჩაეწერე მოლოდინის სიაში და როგორც კი ადგილი გათავისუფლდება, დაგიკავშირდები.</p>
+    <p class="hint" style="font-size:13px;margin:0" data-en="The pass includes &lt;b&gt;8 lessons&lt;/b&gt;. A missed lesson counts as held and is not made up.">აბონემენტში შედის <b>8 გაკვეთილი</b>. გაცდენილი გაკვეთილი ჩატარებულად ითვლება და არ აღდგება.</p>
     <div class="paystep" id="payStep">
       <b id="payTitle">გადახდა ანგარიშზე</b>
-      <span id="payText">ჩასაწერად გადარიცხე 400 ₾ ამ ანგარიშზე. ადგილი შენთვის დაიჯავშნება და როგორც კი ჩარიცხვას დავადასტურებ, ჩაირიცხები კურსზე.</span>
+      <span id="payText">ჩასაწერად გადარიცხე 400 ₾ (8 გაკვეთილი) ამ ანგარიშზე. ადგილი შენთვის დაიჯავშნება და როგორც კი ჩარიცხვას დავადასტურებ, ჩაირიცხები კურსზე.</span>
       <div id="payBox"></div>
     </div>
     <p class="msg" id="grpMsg" role="status"></p>
@@ -1311,8 +1319,8 @@ function openGroup(b) {
   $("waitText").hidden = !waitMode;
   $("payStep").hidden = waitMode;
   $("payTitle").textContent = L("გადახდა ანგარიშზე", "Pay by bank transfer");
-  $("payText").textContent = L(`ჩასაწერად გადარიცხე ${GROUP_PRICE} ₾ ამ ანგარიშზე. ადგილი შენთვის დაიჯავშნება და როგორც კი ჩარიცხვას დავადასტურებ, ჩაირიცხები კურსზე.`,
-    `To join, transfer ${GROUP_PRICE} ₾ to this account. Your spot will be held, and once I confirm the payment you're enrolled.`);
+  $("payText").textContent = L(`ჩასაწერად გადარიცხე ${GROUP_PRICE} ₾ (${PASS} გაკვეთილი) ამ ანგარიშზე. ადგილი შენთვის დაიჯავშნება და როგორც კი ჩარიცხვას დავადასტურებ, ჩაირიცხები კურსზე.`,
+    `To join, transfer ${GROUP_PRICE} ₾ (${PASS} lessons) to this account. Your spot will be held, and once I confirm the payment you're enrolled.`);
   renderPay();
   dlg.showModal();
   if (!sToken) $("grpName").focus();
