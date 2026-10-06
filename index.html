@@ -172,8 +172,27 @@ fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
 .seg label b.t { font-family: var(--body); font-stretch: 100%; font-weight: 700; font-size: 14px; line-height: 1.3; padding-block: 4px; }
 .seg input:checked + label { border-color: var(--accent); background: var(--accent-soft); }
 .seg input:focus-visible + label { outline: 3px solid var(--accent); outline-offset: 2px; }
-.free-next { display: grid; gap: 8px; font-size: 13px; color: var(--muted); }
-.free-next div { display: flex; flex-wrap: wrap; gap: 6px; }
+.legend-sub { font-weight: 500; color: var(--muted); }
+.day-strip { display: flex; gap: 8px; overflow-x: auto; scroll-snap-type: x mandatory; padding: 6px 2px 10px; margin-top: 2px; scrollbar-width: thin; }
+.day-strip button { flex: 0 0 66px; scroll-snap-align: start; display: grid; gap: 2px; justify-items: center; padding: 10px 4px; border: 1.5px solid var(--line); border-radius: 14px; background: var(--bg); color: var(--ink); font: inherit; cursor: pointer; transition: border-color .2s ease, background .2s ease, transform .15s ease; }
+.day-strip button:hover:not(:disabled) { border-color: var(--accent); transform: translateY(-1px); }
+.day-strip .wd { font-size: 12px; color: var(--muted); }
+.day-strip .dn { font-family: var(--display); font-stretch: 62.5%; font-weight: 900; font-size: 26px; line-height: 1; }
+.day-strip .cnt { font-size: 11px; font-weight: 700; color: var(--accent); white-space: nowrap; }
+.day-strip button:disabled { opacity: .38; cursor: default; }
+.day-strip button:disabled .cnt { color: var(--muted); }
+.day-strip button[aria-checked="true"] { border-color: var(--accent); background: var(--accent); color: var(--bg); }
+.day-strip button[aria-checked="true"] .wd, .day-strip button[aria-checked="true"] .cnt { color: inherit; }
+.time-pick { display: grid; gap: 12px; margin-top: 6px; }
+.time-pick h4 { margin: 0 0 6px; font-size: 12px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
+.time-pick .slots { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 8px; }
+.time-pick .slots button { display: grid; gap: 1px; padding: 10px 6px; border: 1.5px solid var(--line); border-radius: 12px; background: var(--bg); color: var(--ink); font: inherit; cursor: pointer; text-align: center; transition: border-color .2s ease, background .2s ease; }
+.time-pick .slots button:hover { border-color: var(--accent); background: var(--accent-soft); }
+.time-pick .slots b { font-family: var(--mono); font-size: 16px; font-variant-numeric: tabular-nums; }
+.time-pick .slots small { font-size: 11px; color: var(--muted); }
+.time-pick .slots button[aria-pressed="true"] { border-color: var(--accent); background: var(--accent); color: var(--bg); }
+.time-pick .slots button[aria-pressed="true"] small { color: inherit; opacity: .85; }
+.time-pick .none { margin: 0; padding: 14px; border: 1.5px dashed var(--line); border-radius: 12px; font-size: 14px; color: var(--muted); }
 .chip-btn { font: inherit; font-size: 13px; font-weight: 700; padding: 6px 11px; border-radius: 999px; border: 1.5px solid var(--line); background: var(--bg); color: var(--ink); cursor: pointer; font-variant-numeric: tabular-nums; }
 .chip-btn:hover { border-color: var(--accent); background: var(--accent-soft); }
 .chip-btn[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
@@ -561,17 +580,15 @@ table.hist td.n { text-align: right; white-space: nowrap; }
           <legend data-en="How many people">რამდენი ადამიანი</legend>
           <div class="seg" id="seg"></div>
         </fieldset>
-        <div class="row2">
-          <div class="field">
-            <label for="indDate" data-en="Preferred day">სასურველი დღე</label>
-            <input type="date" id="indDate" required>
-          </div>
-          <div class="field">
-            <label for="indTime" data-en="Preferred time">სასურველი დრო</label>
-            <select id="indTime" required></select>
-          </div>
-        </div>
-        <div class="free-next" id="freeNext" hidden></div>
+        <fieldset>
+          <legend data-en="Day">დღე</legend>
+          <div class="day-strip" id="dayStrip" role="radiogroup"></div>
+        </fieldset>
+        <fieldset>
+          <legend><span data-en="Free times">თავისუფალი დრო</span> <span class="legend-sub" id="dayLabel"></span></legend>
+          <div class="time-pick" id="timeGrid"></div>
+        </fieldset>
+        <input type="hidden" id="indDate"><input type="hidden" id="indTime">
         <div class="as-user" data-member-only hidden></div>
         <div class="gate" data-guest-only>
           <b data-en="Sign up first">ჯერ დარეგისტრირდი</b>
@@ -1387,31 +1404,50 @@ function startsFor(date, m) {
   return Array.from({ length: 24 }, (_, h) => `${pad(h)}:00`)
     .filter(t => (freeSlots[date] || []).some(([a, b]) => toMin(t) >= a && toMin(t) + m <= b));
 }
+const PICK_DAYS = 14;
+const dateIn = $("indDate");
+// დღეების ზოლი: 14 დღე, თითოეულზე თავისუფალი დროების რაოდენობა; დრო ჯგუფდება დილა/დღე/საღამოდ
 function fillTimes() {
-  const keepT = timeSel.value, date = $("indDate").value, m = curDur();
-  const list = freeSlots && !date ? [] : startsFor(date, m);
-  timeSel.innerHTML = freeSlots && !date ? `<option value="">${L("ჯერ აირჩიე დღე", "Pick a day first")}</option>`
-    : !list.length ? `<option value="">${L("ამ დღეს თავისუფალი დრო არ არის", "No free time this day")}</option>`
-    : `<option value="">${L("აირჩიე", "Choose")}</option>` + list.map(t => `<option value="${t}">${t}-${endTime(t, m)}</option>`).join("");
-  if (list.includes(keepT)) timeSel.value = keepT;
-  renderFreeNext();
+  const m = curDur(), t = todayStr(), days = Array.from({ length: PICK_DAYS }, (_, i) => addDays(t, i));
+  const count = d => startsFor(d, m).filter(x => d !== t || x > nowHM()).length;
+  if (!dateIn.value || !count(dateIn.value)) dateIn.value = days.find(d => count(d)) || "";
+  $("dayStrip").innerHTML = days.map(d => {
+    const n = count(d), x = parseYmd(d);
+    return `<button type="button" role="radio" data-d="${d}" aria-checked="${d === dateIn.value}" ${n ? "" : "disabled"}>
+      <span class="wd">${d === t ? L("დღეს", "Today") : d === addDays(t, 1) ? L("ხვალ", "Tmrw") : WDS[x.getDay()]}</span>
+      <span class="dn">${x.getDate()}</span>
+      <span class="cnt">${n ? n + " " + L("დრო", n === 1 ? "slot" : "slots") : MON[x.getMonth()]}</span></button>`;
+  }).join("");
+  const sel = $("dayStrip").querySelector('[aria-checked="true"]');
+  if (sel) sel.scrollIntoView({ block: "nearest", inline: "nearest" });
+  renderSlots();
 }
-function renderFreeNext() {
-  const box = $("freeNext"), m = curDur(), next = [];
-  box.hidden = !freeSlots;
-  if (!freeSlots) { box.innerHTML = ""; return; }
-  Object.keys(freeSlots).sort().forEach(d => startsFor(d, m).forEach(t => next.length < 8 && next.push([d, t])));
-  box.innerHTML = next.length
-    ? `<span>${L("უახლოესი თავისუფალი დროები", "Nearest free times")}</span><div>${next.map(([d, t]) => `<button type="button" class="chip-btn" data-d="${d}" data-t="${t}">${dayWord(d)}, ${t}</button>`).join("")}</div>`
-    : `<span>${L("უახლოეს დღეებში ამ ხანგრძლივობის თავისუფალი დრო არ მაქვს. მომწერე WhatsApp-ზე და მოვძებნით.", "No free time of this length in the coming days. Message me on WhatsApp and we'll find one.")}</span>`;
+function renderSlots() {
+  const m = curDur(), d = dateIn.value, t = todayStr();
+  const list = d ? startsFor(d, m).filter(x => d !== t || x > nowHM()) : [];
+  if (!list.includes(timeSel.value)) timeSel.value = "";
+  $("dayLabel").textContent = d ? "· " + niceDate(d) : "";
+  const parts = [[L("დილა", "Morning"), x => x < "12:00"], [L("დღე", "Afternoon"), x => x >= "12:00" && x < "17:00"], [L("საღამო", "Evening"), x => x >= "17:00"]];
+  $("timeGrid").innerHTML = !list.length
+    ? `<p class="none">${L("უახლოეს დღეებში ამ ხანგრძლივობის თავისუფალი დრო არ მაქვს. მომწერე WhatsApp-ზე და მოვძებნით.", "No free time of this length in the coming days. Message me on WhatsApp and we'll find one.")}</p>`
+    : parts.map(([name, f]) => {
+      const xs = list.filter(f);
+      return xs.length ? `<div><h4>${name}</h4><div class="slots">${xs.map(x =>
+        `<button type="button" data-t="${x}" aria-pressed="${x === timeSel.value}"><b>${x}</b><small>${L(endTime(x, m) + "-მდე", "until " + endTime(x, m))}</small></button>`).join("")}</div></div>` : "";
+    }).join("");
 }
 function setFree(f) { freeSlots = f || null; fillTimes(); }
-$("freeNext").addEventListener("click", e => {
-  const b = e.target.closest("[data-d]"); if (!b) return;
-  $("indDate").value = b.dataset.d; fillTimes(); timeSel.value = b.dataset.t;
+$("dayStrip").addEventListener("click", e => {
+  const b = e.target.closest("[data-d]"); if (!b || b.disabled) return;
+  dateIn.value = b.dataset.d; timeSel.value = "";
+  $("dayStrip").querySelectorAll("button").forEach(x => x.setAttribute("aria-checked", x === b));
+  renderSlots();
 });
-$("indDate").addEventListener("change", fillTimes);
-$("indDate").min = todayStr();
+$("timeGrid").addEventListener("click", e => {
+  const b = e.target.closest("[data-t]"); if (!b) return;
+  timeSel.value = b.dataset.t;
+  $("timeGrid").querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", x === b));
+});
 fillTimes();
 
 $("indForm").addEventListener("submit", async e => {
