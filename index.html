@@ -639,6 +639,7 @@ table.hist td.n { text-align: right; white-space: nowrap; }
       <div class="label" data-en="My account">ჩემი კაბინეტი</div>
       <h1 id="cabName">…</h1>
       <div class="sub-line" id="cabPhone"></div>
+      <div class="sub-line" id="cabEmail"></div>
     </div>
     <div class="cta">
       <a class="btn btn-ghost btn-sm" href="#groups" data-en="Join a group">ჯგუფში ჩაწერა</a>
@@ -774,6 +775,10 @@ table.hist td.n { text-align: right; white-space: nowrap; }
       <input id="grpPhone" type="tel" inputmode="tel" autocomplete="tel" placeholder="5XX XX XX XX" maxlength="30">
     </div>
     <div class="field" data-guest-only data-pre-pay>
+      <label for="grpEmail" data-en="Email (optional)">მეილი (არასავალდებულო)</label>
+      <input id="grpEmail" type="email" inputmode="email" autocomplete="email" maxlength="100" placeholder="name@gmail.com">
+    </div>
+    <div class="field" data-guest-only data-pre-pay>
       <label for="grpPin" data-en="PIN for your account">PIN კოდი კაბინეტისთვის</label>
       <input id="grpPin" class="pin" inputmode="numeric" autocomplete="off" maxlength="4" placeholder="••••">
       <span class="hint" data-en="Choose 4 digits. Already have an account? Enter your PIN.">მოიფიქრე 4 ციფრი. უკვე გაქვს ანგარიში? შეიყვანე შენი PIN.</span>
@@ -836,6 +841,11 @@ table.hist td.n { text-align: right; white-space: nowrap; }
     <div class="field">
       <label for="lgPhone" data-en="Phone">ტელეფონი</label>
       <input id="lgPhone" type="tel" inputmode="tel" autocomplete="tel" placeholder="5XX XX XX XX" maxlength="30">
+    </div>
+    <div class="field" data-reg-only hidden>
+      <label for="lgEmail" data-en="Email (optional)">მეილი (არასავალდებულო)</label>
+      <input id="lgEmail" type="email" inputmode="email" autocomplete="email" maxlength="100" placeholder="name@gmail.com">
+      <span class="hint" data-en="I'll email you when I confirm your training.">ვარჯიშის დადასტურებას მეილზე მიიღებ.</span>
     </div>
     <div class="field">
       <label for="lgPin" id="lgPinLabel">PIN</label>
@@ -962,6 +972,7 @@ async function api(body) {
   return r.json();
 }
 const ERR = {
+  email: "მეილის ფორმატი არასწორია. მაგ. name@gmail.com",
   full: "ეს ჯგუფი უკვე სავსეა. აირჩიე სხვა დრო.",
   slot_taken: "ეს დრო უკვე დაკავებულია. აირჩიე სხვა თავისუფალი დრო.",
   already: "ამ ჯგუფში უკვე ჩაწერილი ხარ.",
@@ -981,6 +992,7 @@ const ERR = {
   already_changed: "ამ ვარჯიშზე მოთხოვნა უკვე გაგზავნილია.",
 };
 const ERR_EN = {
+  email: "That email doesn't look right. E.g. name@gmail.com",
   full: "This group is already full. Please pick another time.",
   slot_taken: "This time is already taken. Please pick another free time.",
   already: "You're already signed up for this group.",
@@ -1078,13 +1090,14 @@ document.querySelectorAll("input.pin").forEach(i => i.addEventListener("input", 
 $("loginForm").addEventListener("submit", async e => {
   e.preventDefault();
   const reg = authMode === "register", msg = $("lgMsg"), btn = $("lgBtn");
-  const phone = $("lgPhone").value, pin = $("lgPin").value, name = $("lgName").value;
+  const phone = $("lgPhone").value, pin = $("lgPin").value, name = $("lgName").value, email = $("lgEmail").value.trim();
   if (reg && name.trim().length < 2) return say(msg, L("შეიყვანე სახელი.", "Enter your name."), "err");
   if (phone.replace(/\D/g, "").length < 9) return say(msg, L("შეიყვანე ტელეფონის ნომერი (9 ციფრი).", "Enter your phone number (9 digits)."), "err");
   if (!/^\d{4}$/.test(pin)) return say(msg, errText("pin_format"), "err");
+  if (reg && email && !okEmail(email)) return say(msg, errText("email"), "err");
   btn.disabled = true;
   try {
-    const res = await api(reg ? { action: "register", name, phone, pin } : { action: "login", phone, pin });
+    const res = await api(reg ? { action: "register", name, phone, pin, email, lang } : { action: "login", phone, pin });
     if (res.ok) {
       setStudent(res.token, res.profile);
       $("loginForm").reset(); loginDlg.close();
@@ -1318,11 +1331,14 @@ daysEl.addEventListener("click", e => {
 $("dlgClose").addEventListener("click", () => dlg.close());
 dlg.addEventListener("click", e => { if (e.target === dlg) dlg.close(); });
 
-const guestFields = (n, p, pin) => sToken ? { token: sToken } : { name: $(n).value, phone: $(p).value, pin: $(pin).value };
+const okEmail = v => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
+const guestFields = (n, p, pin) => sToken ? { token: sToken } : { name: $(n).value, phone: $(p).value, pin: $(pin).value, email: $("grpEmail").value.trim(), lang };
 function guestCheck(n, p, pin) {
   if (sToken) return null;
   if ($(n).value.trim().length < 2 || $(p).value.replace(/\D/g, "").length < 9) return errText("invalid");
   if (!/^\d{4}$/.test($(pin).value)) return errText("pin_format");
+  const em = $("grpEmail").value.trim();
+  if (em && !okEmail(em)) return errText("email");
   return null;
 }
 function afterAuthFail(res) { if (res.error === "auth") logout(); }
@@ -1480,6 +1496,37 @@ $("indForm").addEventListener("submit", async e => {
   setTimeout(done, 2500);
 });
 
+/* ---------- Cabinet: email for confirmations ---------- */
+function renderCabEmail(editing) {
+  const box = $("cabEmail"), em = profile.email || "";
+  if (editing) {
+    box.innerHTML = `<form id="emForm" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+      <input id="emInput" type="email" inputmode="email" autocomplete="email" maxlength="100" placeholder="name@gmail.com" value="${esc(em)}" style="max-width:260px">
+      <button class="btn btn-primary btn-sm" type="submit">${L("შენახვა", "Save")}</button>
+      <button class="btn btn-ghost btn-sm" type="button" data-em="cancel">${L("გაუქმება", "Cancel")}</button></form><span class="msg" id="emMsg"></span>`;
+    $("emInput").focus();
+    return;
+  }
+  box.innerHTML = em
+    ? `${esc(em)} · <a href="#" data-em="edit">${L("შეცვლა", "change")}</a>`
+    : `<a href="#" data-em="edit">${L("+ დაამატე მეილი, რომ დადასტურება მეილზე მიიღო", "+ Add your email to get confirmations")}</a>`;
+}
+$("cabEmail").addEventListener("click", e => {
+  const a = e.target.closest("[data-em]"); if (!a) return;
+  e.preventDefault();
+  renderCabEmail(a.dataset.em === "edit");
+});
+$("cabEmail").addEventListener("submit", async e => {
+  e.preventDefault();
+  const email = $("emInput").value.trim();
+  if (email && !okEmail(email)) return say($("emMsg"), errText("email"), "err");
+  try {
+    const res = await api({ action: "set_email", token: sToken, email, lang });
+    if (res.ok) { profile = res.profile; keep("gv_p", profile); renderCabEmail(); }
+    else { afterAuthFail(res); say($("emMsg"), errText(res.error), "err"); }
+  } catch (err) { say($("emMsg"), errText(), "err"); }
+});
+
 /* ---------- Cabinet ---------- */
 async function refreshProfile() {
   if (!sToken) return;
@@ -1537,6 +1584,7 @@ function renderCabinet() {
   const p = profile;
   $("cabName").innerHTML = `${L("გამარჯობა", "Hi")}, <em>${esc(p.name.split(" ")[0])}</em>`;
   $("cabPhone").textContent = fmtPhone(p.phone);
+  renderCabEmail();
   const paid = p.memberships.filter(m => !m.pending);
   const remaining = paid.reduce((s, m) => s + m.remaining, 0), bought = paid.reduce((s, m) => s + m.purchased, 0);
   const marked = p.stats.attended + p.stats.missed;
@@ -1924,6 +1972,7 @@ $("reqList").addEventListener("click", async e => {
     const res = await api(body);
     if (!res.ok) { b.disabled = false; return trFail(res); }
     renderRequests(res.requests, res.changes);
+    if (body.status === "დადასტურებული") say($("trErr"), res.emailed ? "დადასტურდა ✓ მოსწავლეს დასტურის მეილი გაეგზავნა." : "დადასტურდა ✓ მოსწავლეს მეილი არ აქვს მითითებული, დაუკავშირდი ტელეფონით.", "ok");
   } catch (err) { b.disabled = false; say($("trErr"), errText(), "err"); }
 });
 
@@ -1990,6 +2039,7 @@ $("memList").addEventListener("click", async e => {
       : { action: "admin_cancel_member", token: aToken, member: id });
     if (!res.ok) { b.disabled = false; return trFail(res); }
     renderMembers(res.members, res.reserved, res.waitlist);
+    if (b.dataset.act === "pay") say($("trErr"), res.emailed ? "ჩაირიცხა ✓ მოსწავლეს დასტურის მეილი გაეგზავნა." : "ჩაირიცხა ✓ მოსწავლეს მეილი არ აქვს მითითებული.", "ok");
     loadCounts();
   } catch (err) { b.disabled = false; say($("trErr"), errText(), "err"); }
 });
@@ -2071,7 +2121,7 @@ function mockApi(d) {
     if (!/^\d{4}$/.test(d.pin || "")) fail("pin_format");
     let s = M.students.find(x => x.phone === phone);
     if (s && s.pin !== d.pin) fail("pin_mismatch");
-    if (!s) M.students.push((s = { phone, name, pin: d.pin, created: todayStr() }));
+    if (!s) M.students.push((s = { phone, name, pin: d.pin, created: todayStr(), email: d.email || "" }));
     return s;
   };
   const admin = () => { if (d.token !== "a") fail("auth"); };
@@ -2081,7 +2131,7 @@ function mockApi(d) {
     const s = M.students.find(x => x.phone === phone); if (!s) fail("auth");
     const att = M.att.filter(a => a.phone === phone), month = todayStr().slice(0, 7);
     return {
-      name: s.name, phone,
+      name: s.name, phone, email: s.email || "",
       memberships: M.groups.filter(g => g.phone === phone && g.active).map(g => ({ id: g.id, group: g.group, label: GROUPS[g.group].label, days: GROUPS[g.group].days, time: GROUPS[g.group].time, since: g.created, pending: !!g.pending, renew: !!g.renew, purchased: g.purchased, used: used(g.id), remaining: Math.max(0, g.purchased - used(g.id)) })),
       individual: M.inds.filter(r => r.phone === phone && r.status !== "გაუქმებული").map(r => ({ ...r })),
       waitlist: wl().filter(w => w.phone === phone).map(w => ({ id: w.id, group: w.group, label: GROUPS[w.group].label })),
@@ -2168,8 +2218,14 @@ function mockApi(d) {
         if (!/^\d{4}$/.test(d.pin || "")) fail("pin_format");
         const s = M.students.find(x => x.phone === phone);
         if (s && s.pin !== d.pin) fail("exists");
-        if (!s) M.students.push({ phone, name, pin: d.pin, created: todayStr() });
+        if (d.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(d.email)) fail("email");
+        if (!s) M.students.push({ phone, name, pin: d.pin, created: todayStr(), email: d.email || "" });
         return { ok: true, token: "s:" + phone, profile: prof(phone) };
+      }
+      case "set_email": {
+        const s = M.students.find(x => "s:" + x.phone === d.token); if (!s) fail("auth");
+        if (d.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(d.email)) fail("email");
+        s.email = d.email || ""; return { ok: true, profile: prof(s.phone) };
       }
       case "login": {
         const phone = key(d.phone), s = M.students.find(x => x.phone === phone);
@@ -2220,7 +2276,7 @@ function mockApi(d) {
       case "admin_update_request": {
         admin(); const r = M.inds.find(x => x.id === d.id); if (!r) fail("invalid");
         if (d.date) r.date = d.date; if (d.time) r.time = d.time; if (d.status) r.status = d.status;
-        return reqs();
+        return { ...reqs(), emailed: !!(M.students.find(x => x.phone === r.phone) || {}).email };
       }
       case "admin_members": admin(); return mems();
       case "admin_students": admin(); return { ok: true, students: M.students.map(s => {
