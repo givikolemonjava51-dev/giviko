@@ -105,7 +105,8 @@ section { padding-block: 32px; }
 .packs { grid-column: 1 / -1; padding: 18px 20px; }
 .pack-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 12px; }
 .pack { display: grid; gap: 4px; align-content: start; padding: 14px; background: var(--bg); border: 1px solid var(--line); border-radius: 12px; }
-.pack-n { font-weight: 700; }
+.pack-n { font-weight: 700; display: flex; align-items: center; gap: 8px; }
+.pack-n .people { margin: 0; }
 .pack-price { font-variant-numeric: tabular-nums; }
 .pack-price b { font-family: var(--display); font-stretch: 62.5%; font-weight: 900; font-size: 34px; line-height: 1.1; }
 .pack-price s { color: var(--muted); font-size: 18px; margin-left: 6px; }
@@ -566,7 +567,7 @@ table.hist td.n { text-align: right; white-space: nowrap; }
         <div class="math" data-en="= 50 ₾ per session">= 50 ₾ ერთი ვარჯიში</div>
       </div>
       <div class="card packs">
-        <div class="label" data-en="Individual packs · 1 person · 1 hour">ინდივიდუალური პაკეტები · 1 ადამიანი · 1 საათი</div>
+        <div class="label" data-en="Individual packs · 8 one-hour lessons">ინდივიდუალური პაკეტები · 8 ერთსაათიანი გაკვეთილი</div>
         <div class="pack-grid" id="packRows"></div>
       </div>
     </div>
@@ -929,10 +930,12 @@ const IND_PRICES = {
 const IND_EVE_FROM = "18:00";
 const DURS = [60, 90, 120]; // ხანგრძლივობა წუთებში; 1.5 და 2 საათი პროპორციულია
 const tierPrice = (tier, m, n) => Math.round(IND_PRICES[tier][n] * m / 60);
-// 8-გაკვეთილიანი პაკეტები (1 ადამიანი, 1 საათი); old = ძველი ფასი, ხაზგადასმული
+// 8-გაკვეთილიანი პაკეტები (1 საათიანი გაკვეთილები); people = ადამიანების რაოდენობა, old = ძველი ფასი, ხაზგადასმული
 const PACKS = [
-  { tier: "day", n: 8, price: 880, old: 1040 },
-  { tier: "eve", n: 8, price: 1040, old: 1200 },
+  { people: 1, tier: "day", n: 8, price: 880, old: 1200 },
+  { people: 1, tier: "eve", n: 8, price: 1040, old: 1200 },
+  { people: 2, tier: "day", n: 8, price: 1120, old: 1440 },
+  { people: 2, tier: "eve", n: 8, price: 1280, old: 1440 },
 ];
 const durText = m => (m / 60) + L(" სთ", " h");
 const durLong = m => m === 60 ? L("1 საათი", "1 hour") : (m / 60) + L(" საათი", " hours");
@@ -1237,10 +1240,10 @@ function renderPrices(m, anim) {
 function renderPacks() {
   $("packRows").innerHTML = PACKS.map(p => `<div class="pack">
     <div class="ptier-name">${tierName(p.tier)}</div>
-    <div class="pack-n">${L(`${p.n} გაკვეთილი`, `${p.n} lessons`)}</div>
+    <div class="pack-n">${peopleIcon(p.people)} ${ppl(p.people)} · ${L(`${p.n} გაკვეთილი`, `${p.n} lessons`)}</div>
     <div class="pack-price"><b>${p.price} ₾</b> <s>${p.old} ₾</s></div>
     <div class="pack-save">${L(`დაზოგე ${p.old - p.price} ₾ · ${Math.round(p.price / p.n)} ₾ ერთი გაკვეთილი`, `Save ${p.old - p.price} ₾ · ${Math.round(p.price / p.n)} ₾ per lesson`)}</div>
-    <a class="btn btn-ghost btn-sm" target="_blank" rel="noopener" href="${waLink(COACH_PHONE, `გამარჯობა! მინდა ${p.n}-გაკვეთილიანი პაკეტი (${tierName(p.tier)}) - ${p.price} ₾`)}">${L("პაკეტის შეძენა", "Get this pack")}</a>
+    <a class="btn btn-ghost btn-sm" target="_blank" rel="noopener" href="${waLink(COACH_PHONE, `გამარჯობა! მინდა ${p.n}-გაკვეთილიანი პაკეტი, ${p.people} ადამიანი (${tierName(p.tier)}) - ${p.price} ₾`)}">${L("პაკეტის შეძენა", "Get this pack")}</a>
   </div>`).join("");
 }
 $("priceDur").addEventListener("click", e => { const b = e.target.closest("[data-m]"); if (b && +b.dataset.m !== priceM) renderPrices(+b.dataset.m, true); });
