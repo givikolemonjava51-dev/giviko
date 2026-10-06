@@ -14,6 +14,15 @@ const TZ = "Asia/Tbilisi";
 const CAPACITY = 4;
 const PASS = 8;
 const PRICES = { 1: 140, 2: 180, 3: 210, 4: 240 };
+// ინდივიდუალური ვარჯიშის ფასი ხანგრძლივობის (წუთი) და ადამიანების მიხედვით
+const DUR_PRICES = {
+  60: PRICES,
+  90: { 1: 210, 2: 270, 3: 315, 4: 360 },
+  120: { 1: 280, 2: 360, 3: 420, 4: 480 },
+};
+// სტატისტიკა: ტრენერის სუფთა მოგება ერთ ვარჯიშზე
+const PROFIT_IND_HOUR = 80;              // ინდივიდუალური, 1 საათზე (1.5 სთ = 120, 2 სთ = 160)
+const PROFIT_GROUP = { 3: 75, 4: 120 };  // ჯგუფი ადამიანების მიხედვით; 2 ან ნაკლები = 0
 const EXPERIENCE = ["სრულიად დამწყები", "0-1 წელი", "1+ წელი"];
 const SCHEDULE = [
   { key: "mw", label: "ორშაბათი-ოთხშაბათი", days: [1, 3], hours: ["19:00", "20:00", "21:00", "22:00"] },
@@ -34,11 +43,12 @@ const FREE_DAYS = 14; // ინდივიდუალურისთვის 
 const TABLES = {
   Students: ["phone", "name", "pinHash", "created"],
   Groups: ["id", "group", "name", "phone", "active", "pending", "purchased", "created", "renew"],
-  Requests: ["id", "people", "price", "date", "time", "name", "phone", "experience", "status", "created", "note"],
+  Requests: ["id", "people", "price", "date", "time", "name", "phone", "experience", "status", "created", "note", "duration"],
   Attendance: ["date", "kind", "label", "member", "phone", "status"],
   Reserved: ["group", "count"],
   Waitlist: ["id", "group", "name", "phone", "status", "created"],
   Changes: ["id", "kind", "ref", "name", "phone", "date", "time", "action", "newDate", "newTime", "status", "created"],
+  Feedback: ["date", "member", "phone", "name", "label", "text", "updated"],
   Free: ["date", "from", "to", "source"],
 };
 // ცხრილების აღწერა: როცა იცვლება, ძველ ცხრილს ემატება ახალი ფურცლები და სვეტები
@@ -120,9 +130,15 @@ const bool_ = v => v === true || v === "TRUE" || v === "true" || v === "1";
 const fail_ = code => { throw { code }; };
 const isDate_ = s => /^\d{4}-\d{2}-\d{2}$/.test(s || "");
 const isTime_ = s => /^\d{2}:\d{2}$/.test(s || "");
-const hm_ = v => { const m = String(v || "").trim().match(/^(\d{1,2})[:.](\d{2})/); return m && +m[1] < 25 ? pad_(+m[1]) + ":" + m[2] : ""; };
 const mins_ = s => +s.slice(0, 2) * 60 + +s.slice(3);
-const addDays_ = (s, n) => { const [y, m, d] = s.split("-").map(Number); return Utilities.formatDate(new Date(Date.UTC(y, m - 1, d + n, 12)), "UTC", "yyyy-MM-dd"); };
+const hhmm_ = m => pad_(Math.floor(m / 60)) + ":" + pad_(m % 60);
+const dur_ = r => Number(r.duration) || 60; // ძველ ჩანაწერებში ხანგრძლივობა ცარიელია = 1 საათი
+const durText_ = m => (m / 60) + " სთ";
+const endTime_ = r => hhmm_(mins_(r.time) + dur_(r));
+const nextDay_ = s => { const [y, m, d] = s.split("-").map(Number); return new Date(Date.UTC(y, m - 1, d + 1)).toISOString().slice(0, 10); };
+const groupProfit_ = n => PROFIT_GROUP[Math.min(n, 4)] || 0;
+const hm_ = v => { const m = String(v || "").trim().match(/^(\d{1,2})[:.](\d{2})/); return m && +m[1] < 25 ? pad_(+m[1]) + ":" + m[2] : ""; };
+const addDays_ = (s, n) => { const [y, m, d] = s.split("-").map(Number); return new Date(Date.UTC(y, m - 1, d + n)).toISOString().slice(0, 10); };
 const weekday_ = s => { const [y, m, d] = s.split("-").map(Number); return new Date(Date.UTC(y, m - 1, d)).getUTCDay(); };
 
 function secret_() {
@@ -166,7 +182,7 @@ function json_(o) {
 }
 
 const WRITES = ["group", "individual", "register", "waitlist", "waitlist_leave", "renew", "cancel", "reschedule",
-  "admin_mark", "admin_update_request", "admin_renew", "admin_confirm_payment", "admin_cancel_member", "admin_change", "admin_waitlist_remove"];
+  "admin_mark", "admin_update_request", "admin_renew", "admin_confirm_payment", "admin_cancel_member", "admin_change", "admin_waitlist_remove", "admin_feedback"];
 
 // ხშირი წაკითხვები (განრიგი, კაბინეტი) ინახება ქეშში, რომ ცხრილი ყოველ ჯერზე არ გაიხსნას.
 // ნებისმიერი ჩაწერა ქეშს აახლებს; ცხრილში ხელით შეცვლილი ციფრი საიტზე მაქსიმუმ CACHE_SEC წამში ჩანს.
@@ -209,26 +225,30 @@ function route_(d, db) {
   const inds = () => db.all("Requests"), att = () => db.all("Attendance");
   const wl = () => db.all("Waitlist").filter(w => w.status === "active"), chg = () => db.all("Changes");
   const reserved = () => { const r = {}; db.all("Reserved").forEach(x => (r[x.group] = Number(x.count) || 0)); return r; };
+  const fbs = () => db.all("Feedback");
   const used = id => att().filter(a => a.member === id).length;
-  // ტრენერის თავისუფალი საათები (ფურცელი Free): { "2026-10-05": ["10:00", "11:00"] }.
+  // ტრენერის თავისუფალი შუალედები (ფურცელი Free) წუთებში: { "2026-10-05": [[600, 780], [960, 1080]] }.
+  // დაკავებულია: უკვე მოთხოვნილი ინდივიდუალური (მთელი ხანგრძლივობით), ჯგუფური საათები და დღევანდელი გასული დრო.
   // ფურცელი ცარიელია → null და საიტი ძველებურად ყველა საათს აჩვენებს.
   const free = () => {
     const rows = db.all("Free");
     if (!rows.length) return null;
-    const t = today_(), last = addDays_(t, FREE_DAYS), now = Utilities.formatDate(new Date(), TZ, "HH:mm");
-    const taken = {};
-    inds().filter(r => r.status === "ახალი" || r.status === "დადასტურებული").forEach(r => (taken[r.date + " " + r.time] = true));
-    const out = {}, groupAt = (date, time) => Object.values(GROUPS).some(g => g.time === time && g.days.includes(weekday_(date)));
+    const t = today_(), last = addDays_(t, FREE_DAYS), now = mins_(Utilities.formatDate(new Date(), TZ, "HH:mm"));
+    const open = {}, busy = {};
+    const add = (m, date, a, b) => { if (b > a) (m[date] = m[date] || []).push([a, b]); };
     rows.forEach(r => {
       const date = String(r.date).trim(), from = hm_(r.from), to = hm_(r.to);
-      if (!isDate_(date) || !from || !to || date < t || date > last) return;
-      for (let h = Math.ceil(mins_(from) / 60); (h + 1) * 60 <= mins_(to); h++) {
-        const time = pad_(h) + ":00";
-        if ((date === t && time <= now) || taken[date + " " + time] || groupAt(date, time)) continue;
-        (out[date] = out[date] || []).includes(time) || out[date].push(time);
-      }
+      if (isDate_(date) && from && to && date >= t && date <= last) add(open, date, mins_(from), mins_(to));
     });
-    Object.keys(out).forEach(k => out[k].sort());
+    inds().filter(r => r.status === "ახალი" || r.status === "დადასტურებული")
+      .forEach(r => isTime_(r.time) && add(busy, r.date, mins_(r.time), mins_(r.time) + dur_(r)));
+    const out = {};
+    Object.keys(open).forEach(date => {
+      Object.values(GROUPS).forEach(g => g.days.includes(weekday_(date)) && add(busy, date, mins_(g.time), mins_(g.time) + 60));
+      if (date === t) add(busy, date, 0, now);
+      const w = minus_(merge_(open[date]), merge_(busy[date] || []));
+      if (w.length) out[date] = w;
+    });
     return out;
   };
   const active = g => bool_(g.active);
@@ -271,6 +291,7 @@ function route_(d, db) {
       individual: inds().filter(r => r.phone === phone && r.status !== "გაუქმებული").map(pubReq_),
       waitlist: wl().filter(w => w.phone === phone && GROUPS[w.group]).map(w => ({ id: w.id, group: w.group, label: GROUPS[w.group].label })),
       changes: chg().filter(c => c.phone === phone).map(pubChg_),
+      feedback: fbs().filter(f => f.phone === phone && f.text).sort((a, b) => (a.date < b.date ? 1 : -1)).map(f => ({ date: f.date, label: f.label, text: f.text })),
       history: mine.slice().sort((a, b) => (a.date < b.date ? 1 : -1)).map(a => ({ date: a.date, kind: a.kind, label: a.label, status: a.status })),
       stats: {
         attended: mine.filter(a => a.status === "მოვიდა").length,
@@ -282,6 +303,7 @@ function route_(d, db) {
   const day = () => {
     if (!isDate_(d.date)) fail_("invalid");
     const wd = weekday_(d.date), mark = id => (att().find(a => a.date === d.date && a.member === id) || {}).status || "";
+    const fb = id => (fbs().find(f => f.date === d.date && f.member === id) || {}).text || "";
     const left = m => Math.max(0, (Number(m.purchased) || 0) - used(m.id));
     // მოსწავლემ გააფრთხილა, რომ ვერ მოვა, ან სხვა დღეზე გადაიტანა
     const away = id => chg().find(c => c.ref === id && c.date === d.date && (c.action === "cancel" || c.status !== "უარყოფილი"));
@@ -291,21 +313,21 @@ function route_(d, db) {
       sessions.push({ kind: "group", ref: g.id, time: g.time, label: g.label,
         members: groups().filter(m => m.group === g.id && active(m) && !bool_(m.pending)).map(m => {
           const c = away(m.id);
-          return { id: m.id, name: m.name, phone: m.phone, remaining: left(m), mark: mark(m.id), away: !!c && (c.action === "cancel" || c.status === "დადასტურებული"),
+          return { id: m.id, name: m.name, phone: m.phone, remaining: left(m), mark: mark(m.id), feedback: fb(m.id), away: !!c && (c.action === "cancel" || c.status === "დადასტურებული"),
             note: !c ? "" : c.action === "cancel" ? "გააფრთხილა: ვერ მოვა" : (c.status === "ახალი" ? "ითხოვს გადატანას: " : "გადატანილია: ") + c.newDate + " " + c.newTime };
         }) });
     });
     // ანაზღაურებითი ვარჯიშები: დადასტურებული გადატანა ამ დღეზე
     chg().filter(c => c.action === "reschedule" && c.status === "დადასტურებული" && c.newDate === d.date).forEach(c => {
       const m = groups().find(x => x.id === c.ref); if (!m) return;
-      const row = { id: m.id, name: m.name, phone: m.phone, remaining: left(m), mark: mark(m.id), note: "ანაზღაურება (" + c.date + "-ის ნაცვლად)" };
+      const row = { id: m.id, name: m.name, phone: m.phone, remaining: left(m), mark: mark(m.id), feedback: fb(m.id), note: "ანაზღაურება (" + c.date + "-ის ნაცვლად)" };
       const s = sessions.find(x => x.kind === "group" && x.time === c.newTime);
       if (s) s.members.push(row);
       else sessions.push({ kind: "makeup", ref: c.id, time: c.newTime, label: "ანაზღაურებითი ვარჯიში", members: [row] });
     });
     inds().filter(r => r.date === d.date && r.status !== "გაუქმებული").forEach(r => sessions.push({
-      kind: "individual", ref: r.id, time: r.time, label: `ინდივიდუალური · ${r.people} ადამიანი · ${r.price} ₾`,
-      members: [{ id: r.id, name: r.name, phone: r.phone, mark: mark(r.id) }] }));
+      kind: "individual", ref: r.id, time: r.time, label: `ინდივიდუალური · ${r.time}-${endTime_(r)} · ${r.people} ადამიანი · ${r.price} ₾`,
+      members: [{ id: r.id, name: r.name, phone: r.phone, mark: mark(r.id), feedback: fb(r.id) }] }));
     sessions.sort((a, b) => (a.time < b.time ? -1 : 1));
     return { ok: true, date: d.date, sessions };
   };
@@ -323,6 +345,25 @@ function route_(d, db) {
   const seatFreed = gid => {
     const next = wl().filter(w => w.group === gid);
     if (next.length) notify_("ადგილი გათავისუფლდა", ["ჯგუფი: " + GROUPS[gid].label, "მოლოდინის სიაში " + next.length + " ადამიანია. პირველი:", next[0].name + " · " + next[0].phone]);
+  };
+  // სტატისტიკა: ჩატარებული ვარჯიშები from-დან to-მდე (ორივე ჩათვლით), საათები და სუფთა მოგება
+  const stats = () => {
+    if (!isDate_(d.from) || !isDate_(d.to) || d.from > d.to) fail_("invalid");
+    const now = Utilities.formatDate(new Date(), TZ, "yyyy-MM-dd HH:mm"), res = reserved(), out = [];
+    const over = (date, end) => date + " " + end <= now; // მხოლოდ დასრულებული ვარჯიშები
+    for (let date = d.from, n = 0; date <= d.to && n < 400; date = nextDay_(date), n++) {
+      const wd = weekday_(date);
+      Object.values(GROUPS).forEach(g => {
+        if (!g.days.includes(wd) || !over(date, hhmm_(mins_(g.time) + 60))) return;
+        // ჯგუფის ზომა: საიტის გარეშე დაკავებული (Reserved) + გადახდილი წევრები, ვინც ამ დღისთვის უკვე ჩაწერილი იყო
+        const people = (res[g.id] || 0) + groups().filter(m => m.group === g.id && active(m) && !bool_(m.pending) && m.created <= date).length;
+        if (people) out.push({ date, time: g.time, kind: "group", label: g.label, people, minutes: 60, income: groupProfit_(people) });
+      });
+    }
+    inds().filter(r => r.date >= d.from && r.date <= d.to && (r.status === "დადასტურებული" || r.status === "ჩატარდა") && over(r.date, endTime_(r)))
+      .forEach(r => out.push({ date: r.date, time: r.time, kind: "individual", label: "ინდივიდუალური · " + r.name, people: Number(r.people) || 1, minutes: dur_(r), income: PROFIT_IND_HOUR * dur_(r) / 60 }));
+    out.sort((a, b) => (a.date + a.time < b.date + b.time ? -1 : 1));
+    return { ok: true, from: d.from, to: d.to, sessions: out };
   };
   const member = () => { const g = groups().find(x => x.id === d.member); if (!g) fail_("invalid"); return g; };
 
@@ -343,13 +384,14 @@ function route_(d, db) {
     case "individual": {
       if (!d.token) fail_("login_required");
       if (!EXPERIENCE.includes(d.experience)) fail_("experience");
-      const s = who(), people = Number(d.people);
-      if (!PRICES[people]) fail_("invalid");
+      const s = who(), people = Number(d.people), duration = Number(d.duration) || 60;
+      if (!DUR_PRICES[duration] || !DUR_PRICES[duration][people]) fail_("invalid");
+      if (mins_(d.time || "00:00") + duration > 24 * 60) fail_("invalid");
       if (!/^\d{4}-\d{2}-\d{2}$/.test(d.date || "") || !/^\d{2}:00$/.test(d.time || "")) fail_("invalid");
       if (d.date < today_()) fail_("past");
       const f = free();
-      if (f && !(f[d.date] || []).includes(d.time)) fail_("slot_taken");
-      const r = db.add("Requests", { id: db.nextId("I"), people, price: PRICES[people], date: d.date, time: d.time, name: s.name, phone: s.phone, experience: d.experience, status: "ახალი", created: today_() });
+      if (f && !fits_(f[d.date], mins_(d.time), duration)) fail_("slot_taken");
+      const r = db.add("Requests", { id: db.nextId("I"), people, duration, price: DUR_PRICES[duration][people], date: d.date, time: d.time, name: s.name, phone: s.phone, experience: d.experience, status: "ახალი", created: today_() });
       notify_("ახალი ინდივიდუალური მოთხოვნა", reqLines_(r));
       return { ok: true, token: sToken(s.phone), free: free() };
     }
@@ -466,10 +508,25 @@ function route_(d, db) {
         if (ex && !m.status) db.remove("Attendance", ex);
         else if (ex) { ex.status = m.status; db.save("Attendance", ex); }
         else if (m.status) db.add("Attendance", { date: d.date, kind: g ? "ჯგუფური" : "ინდივიდუალური",
-          label: g ? (GROUPS[g.group] || {}).label : `ინდივიდუალური · ${r.people} ადამიანი`, member: m.member, phone: src.phone, status: m.status });
+          label: g ? (GROUPS[g.group] || {}).label : `ინდივიდუალური · ${durText_(dur_(r))} · ${r.people} ადამიანი`, member: m.member, phone: src.phone, status: m.status });
       });
       return day();
     }
+
+    case "admin_feedback": {
+      admin();
+      if (!isDate_(d.date)) fail_("invalid");
+      const g = groups().find(x => x.id === d.member), r = inds().find(x => x.id === d.member), src = g || r;
+      if (!src) fail_("invalid");
+      const text = String(d.text || "").trim().slice(0, 1000), ex = fbs().find(f => f.date === d.date && f.member === d.member);
+      if (ex && !text) db.remove("Feedback", ex);
+      else if (ex) { ex.text = text; ex.updated = today_(); db.save("Feedback", ex); }
+      else if (text) db.add("Feedback", { date: d.date, member: d.member, phone: src.phone, name: src.name, text, updated: today_(),
+        label: g ? (GROUPS[g.group] || {}).label : `ინდივიდუალური · ${durText_(dur_(r))}` });
+      return { ok: true, member: d.member, feedback: text };
+    }
+
+    case "admin_stats": admin(); return stats();
 
     case "admin_requests": admin(); return reqs();
 
@@ -524,13 +581,13 @@ function route_(d, db) {
 }
 
 function pubReq_(r) {
-  return { id: r.id, people: Number(r.people), price: Number(r.price), date: r.date, time: r.time, name: r.name, phone: r.phone, experience: r.experience, status: r.status, note: r.note || "" };
+  return { id: r.id, people: Number(r.people), duration: dur_(r), price: Number(r.price), date: r.date, time: r.time, name: r.name, phone: r.phone, experience: r.experience, status: r.status, note: r.note || "" };
 }
 function pubChg_(c) {
   return { id: c.id, kind: c.kind, ref: c.ref, name: c.name, phone: c.phone, date: c.date, time: c.time, action: c.action, newDate: c.newDate, newTime: c.newTime, status: c.status };
 }
 function reqLines_(r) {
-  return ["სახელი: " + r.name, "ტელეფონი: " + r.phone, "თარიღი: " + r.date + " " + r.time, "ადამიანი: " + r.people + " · " + r.price + " ₾", "გამოცდილება: " + r.experience];
+  return ["სახელი: " + r.name, "ტელეფონი: " + r.phone, "თარიღი: " + r.date + " " + r.time + "-" + endTime_(r), "ხანგრძლივობა: " + durText_(dur_(r)), "ადამიანი: " + r.people + " · " + r.price + " ₾", "გამოცდილება: " + r.experience];
 }
 
 /* ---------- შეტყობინებები: მეილი + WhatsApp ---------- */
@@ -601,101 +658,135 @@ function installReminders() {
   console.log("შეხსენებები ჩაირთო: ყოველ საათში შემოწმდება, ხომ არ არის ვარჯიში 24 ან 2 საათში.");
 }
 
-/* ---------- კლუბის კალენდრიდან თავისუფალი საათები ----------
-   Book&Go-ს (ან Google Calendar-ის) iCal ლინკი ჩაწერეთ Apps Script-ში:
-   Project Settings → Script Properties → Add property:
-     CLUB_CAL_URL   iCal ლინკი (https://… ან webcal://…), აქ კი არა, მხოლოდ იქ
-     CLUB_CAL_MODE  busy (ნაგულისხმევი): კალენდარში ჯავშნებია, თავისუფალია სამუშაო საათები ჯავშნების გარეშე
-                    free: კალენდარში თავად თავისუფალი საათებია ჩაწერილი
-     WORK_HOURS     სამუშაო საათები busy რეჟიმისთვის, მაგ. 09:00-23:00 (ნაგულისხმევი 08:00-23:00)
-   შემდეგ ერთხელ გაუშვით installClubSync: ყოველ 15 წუთში განაახლებს ფურცელს Free (source = club).
+/* ---------- კლუბის (Book&Go) განრიგიდან თავისუფალი საათები ----------
+   Book&Go-ს მხარდაჭერის მიერ მოცემული გასაღები ჩაწერეთ მხოლოდ Apps Script-ში:
+   Project Settings → Script Properties → Add property → CLUB_API_KEY (აქ, კოდში ან საიტზე არასდროს).
+   სურვილისამებრ: WORK_HOURS, მაგ. 09:00-23:00 — გამოიყენება მხოლოდ მაშინ, თუ კლუბის სამუშაო საათები ვერ წაიკითხა.
+   შემდეგ ერთხელ გაუშვით installClubSync: ყოველ 15 წუთში ფურცელში Free ჩაიწერება
+   სამუშაო საათებს გამოკლებული კლუბში დაჯავშნილი ვარჯიშები (source = club).
    ფურცელში ხელით ჩაწერილი სტრიქონები (source ცარიელი) უცვლელი რჩება. */
+const CLUB_API = "https://docsapi.bookandgo.app/api/coach/";
+
+function clubGet_(path) {
+  const key = String(PropertiesService.getScriptProperties().getProperty("CLUB_API_KEY") || "").trim();
+  if (!key) throw new Error("CLUB_API_KEY ცარიელია (Project Settings → Script Properties).");
+  const res = UrlFetchApp.fetch(CLUB_API + path, { headers: { Authorization: "Bearer " + key }, muteHttpExceptions: true });
+  if (res.getResponseCode() !== 200) throw new Error("Book&Go " + path.split("?")[0] + ": HTTP " + res.getResponseCode() + " " + res.getContentText().slice(0, 200));
+  return JSON.parse(res.getContentText());
+}
+
 function syncClubFree() {
-  const props = PropertiesService.getScriptProperties();
-  const url = String(props.getProperty("CLUB_CAL_URL") || "").trim().replace(/^webcal:/i, "https:");
-  if (!url) { console.log("CLUB_CAL_URL ცარიელია (Script Properties)."); return; }
-  const mode = String(props.getProperty("CLUB_CAL_MODE") || "busy").trim().toLowerCase() === "free" ? "free" : "busy";
-  const work = String(props.getProperty("WORK_HOURS") || "08:00-23:00").split("-").map(hm_);
-  if (mode === "busy" && (!work[0] || !work[1])) { console.log("WORK_HOURS არასწორია, მაგ. 09:00-23:00"); return; }
-  const res = UrlFetchApp.fetch(url, { muteHttpExceptions: true, followRedirects: true });
-  if (res.getResponseCode() !== 200) { console.error("კალენდარი ვერ ჩაიტვირთა: HTTP " + res.getResponseCode()); return; }
   const t = today_(), last = addDays_(t, FREE_DAYS);
-  const days = {}; // date → [[from, to] წუთებში]
-  // busy რეჟიმში "თავისუფალად" მონიშნული მოვლენა (TRANSP:TRANSPARENT) დროს არ იკავებს
-  parseIcs_(res.getContentText()).filter(ev => mode === "free" || !ev.transparent).forEach(ev => {
-    for (let date = ev.start.date; date <= ev.end.date && date <= last; date = addDays_(date, 1)) {
-      if (date < t) continue;
-      const from = date === ev.start.date ? ev.start.min : 0, to = date === ev.end.date ? ev.end.min : 1440;
-      if (to > from) (days[date] = days[date] || []).push([from, to]);
-    }
+  const sched = clubGet_("schedule?start_date=" + t + "&end_date=" + last);
+  let wh = null;
+  try { wh = clubGet_("working-hours"); } catch (e) { console.warn(e.message); }
+  const hours = workingHours_(wh);
+  if (!hours) console.warn("სამუშაო საათები ვერ წავიკითხე, ვიყენებ WORK_HOURS-ს. გაუშვით testClubApi და პასუხი გაუგზავნეთ დეველოპერს.");
+  const fallback = String(PropertiesService.getScriptProperties().getProperty("WORK_HOURS") || "08:00-23:00").split("-").map(hm_);
+  const busy = {};
+  (sched.sessions || []).forEach(s => {
+    const a = hm_(s.start_time_local), b = hm_(s.end_time_local);
+    if (!isDate_(s.date) || !a || !b) return;
+    const to = mins_(b) > mins_(a) ? mins_(b) : 1440; // შუაღამეს გადასული ვარჯიში
+    (busy[s.date] = busy[s.date] || []).push([mins_(a), to]);
   });
   const rows = [];
   for (let date = t; date <= last; date = addDays_(date, 1)) {
-    const evs = (days[date] || []).sort((a, b) => a[0] - b[0]);
-    let wins = [];
-    if (mode === "free") wins = evs;
-    else {
-      let cur = mins_(work[0]);
-      const end = mins_(work[1]);
-      evs.forEach(([a, b]) => { if (a > cur) wins.push([cur, Math.min(a, end)]); cur = Math.max(cur, b); });
-      if (cur < end) wins.push([cur, end]);
-    }
-    wins.filter(w => w[1] > w[0]).forEach(w => rows.push([date, hhmm_(w[0]), hhmm_(w[1]), "club"]));
+    let open;
+    if (hours) open = hours.special[date] || hours.weekly[weekday_(date)] || [];
+    else open = fallback[0] && fallback[1] ? [[mins_(fallback[0]), mins_(fallback[1])]] : [];
+    minus_(merge_(open), merge_(busy[date] || [])).forEach(w => rows.push([date, hhmm_(w[0]), hhmm_(w[1]), "club"]));
   }
-  const ss = book_(), sh = ss.getSheetByName("Free"), db = Db_();
-  const manual = db.all("Free").filter(r => r.source !== "club").map(r => TABLES.Free.map(c => r[c]));
+  const sh = book_().getSheetByName("Free");
+  const manual = Db_().all("Free").filter(r => r.source !== "club").map(r => TABLES.Free.map(c => r[c]));
   const all = manual.concat(rows);
   if (sh.getLastRow() > 1) sh.getRange(2, 1, sh.getLastRow() - 1, TABLES.Free.length).clearContent();
   if (all.length) sh.getRange(2, 1, all.length, TABLES.Free.length).setNumberFormat("@").setValues(all);
   CacheService.getScriptCache().put("ver", String(Date.now()), 21600); // საიტი მაშინვე ხედავს ახალ საათებს
-  console.log("კლუბის კალენდრიდან ჩაიწერა " + rows.length + " თავისუფალი შუალედი (" + mode + ").");
+  console.log("Book&Go: " + (sched.sessions || []).length + " ვარჯიში, ჩაიწერა " + rows.length + " თავისუფალი შუალედი.");
 }
 
 function installClubSync() {
   ScriptApp.getProjectTriggers().filter(t => t.getHandlerFunction() === "syncClubFree").forEach(t => ScriptApp.deleteTrigger(t));
   ScriptApp.newTrigger("syncClubFree").timeBased().everyMinutes(15).create();
   syncClubFree();
-  console.log("კალენდრის სინქრონიზაცია ჩაირთო: ყოველ 15 წუთში.");
+  console.log("კლუბის განრიგის სინქრონიზაცია ჩაირთო: ყოველ 15 წუთში.");
 }
 
-const hhmm_ = m => pad_(Math.floor(m / 60)) + ":" + pad_(m % 60);
+// შემოწმება: აჩვენებს, რას აბრუნებს Book&Go (კლიენტების სახელები პასუხში არ არის).
+function testClubApi() {
+  console.log("working-hours:\n" + JSON.stringify(clubGet_("working-hours"), null, 1).slice(0, 6000));
+  const s = clubGet_("schedule");
+  console.log("schedule: " + (s.sessions || []).length + " ვარჯიში, პირველი: " + JSON.stringify((s.sessions || [])[0] || null));
+  console.log("ასე წაიკითხა სამუშაო საათები (0 = კვირა): " + JSON.stringify(workingHours_(clubGet_("working-hours"))));
+}
 
-// მარტივი iCal წამკითხველი: მოვლენის დასაწყისი და დასასრული თბილისის დროით { date, min }.
-// UTC დრო (…Z) გადაიყვანება თბილისზე; TZID-იანი და უზონო დრო ითვლება თბილისის დროდ.
-function parseIcs_(text) {
-  const lines = String(text).replace(/\r?\n[ \t]/g, "").split(/\r?\n/), out = [];
-  let ev = null;
-  const at = v => {
-    const m = v.match(/^(\d{4})(\d{2})(\d{2})(?:T(\d{2})(\d{2})\d{2}(Z)?)?$/);
-    if (!m) return null;
-    if (!m[4]) return { date: m[1] + "-" + m[2] + "-" + m[3], min: 0 };
-    if (m[6]) {
-      const d = new Date(Date.UTC(+m[1], m[2] - 1, +m[3], +m[4], +m[5]));
-      return { date: Utilities.formatDate(d, TZ, "yyyy-MM-dd"), min: mins_(Utilities.formatDate(d, TZ, "HH:mm")) };
-    }
-    return { date: m[1] + "-" + m[2] + "-" + m[3], min: +m[4] * 60 + +m[5] };
+/* Book&Go-ს სამუშაო საათები → { weekly: { 0..6: [[from, to]] }, special: { "YYYY-MM-DD": [[from, to]] } } წუთებში.
+   ორივე პროფილის (Day და Evening/Weekends) საათები ერთიანდება; შესვენებები აკლდება; unavailable = დასვენების დღე. */
+const DAY_NAMES_ = { sun: 0, mon: 1, tue: 2, wed: 3, thu: 4, fri: 5, sat: 6 };
+function workingHours_(json) {
+  if (!json) return null;
+  const weekly = {}, special = {}, specialOff = {};
+  const add = (m, k, w) => (m[k] = m[k] || []).push(w);
+  const pick = (o, keys) => { for (const k of keys) if (o[k] !== undefined && o[k] !== null) return o[k]; };
+  const span = o => {
+    const a = hm_(pick(o, ["start_time_local", "start_time", "start", "from", "open", "opens_at", "time_from"]));
+    const b = hm_(pick(o, ["end_time_local", "end_time", "end", "to", "close", "closes_at", "time_to"]));
+    return a && b ? [mins_(a), mins_(b) > mins_(a) ? mins_(b) : 1440] : null;
   };
-  lines.forEach(l => {
-    if (l === "BEGIN:VEVENT") ev = {};
-    else if (l === "END:VEVENT") {
-      if (ev && ev.start && !ev.cancelled) {
-        // დასასრულის გარეშე: მთელი დღე ან 1 საათი; 00:00-ზე დამთავრება = წინა დღის ბოლო
-        let end = ev.end || (ev.allDay ? { date: addDays_(ev.start.date, 1), min: 0 } : { date: ev.start.date, min: ev.start.min + 60 });
-        if (end.min === 0 && end.date > ev.start.date) end = { date: addDays_(end.date, -1), min: 1440 };
-        out.push({ start: ev.start, end, transparent: !!ev.transparent });
-      }
-      ev = null;
-    } else if (ev) {
-      const i = l.indexOf(":"); if (i < 0) return;
-      const name = l.slice(0, i).split(";")[0].toUpperCase(), val = l.slice(i + 1).trim();
-      if (name === "DTSTART") { ev.start = at(val); ev.allDay = /VALUE=DATE(?!-)/i.test(l.slice(0, i)) || /^\d{8}$/.test(val); }
-      else if (name === "DTEND") ev.end = at(val);
-      else if (name === "STATUS" && val.toUpperCase() === "CANCELLED") ev.cancelled = true;
-      else if (name === "TRANSP" && val.toUpperCase() === "TRANSPARENT") ev.transparent = true;
+  const dayOf = o => {
+    const v = pick(o, ["weekday", "day_of_week", "dayOfWeek", "day", "dow", "week_day"]);
+    if (typeof v === "string" && isNaN(+v)) return DAY_NAMES_[v.trim().slice(0, 3).toLowerCase()];
+    if (v === undefined || v === "") return undefined;
+    return +v === 7 ? 0 : +v; // 0 ან 7 = კვირა, 1 = ორშაბათი
+  };
+  const breaks = o => Object.keys(o).filter(k => /break/i.test(k) && Array.isArray(o[k])).reduce((a, k) => a.concat(o[k].map(span).filter(Boolean)), []);
+  const walk = (o, dayHint) => {
+    if (Array.isArray(o)) return o.forEach(x => walk(x, dayHint));
+    if (!o || typeof o !== "object") return;
+    const date = isDate_(String(o.date || "").slice(0, 10)) ? String(o.date).slice(0, 10) : "";
+    const day = dayOf(o) !== undefined ? dayOf(o) : dayHint;
+    const w = span(o);
+    if (date) {
+      if (o.unavailable === true || o.is_day_off === true || o.closed === true) specialOff[date] = true;
+      else if (w) minus_([w], breaks(o)).forEach(x => add(special, date, x));
+    } else if (w && day >= 0 && day <= 6 && o.unavailable !== true) {
+      minus_([w], breaks(o)).forEach(x => add(weekly, day, x));
     }
+    Object.keys(o).forEach(k => {
+      if (/break/i.test(k)) return;
+      const hint = DAY_NAMES_[k.slice(0, 3).toLowerCase()];
+      if (o[k] && typeof o[k] === "object") walk(o[k], hint !== undefined && k.length >= 3 && /^[a-z]+$/i.test(k) ? hint : day);
+    });
+  };
+  walk(json);
+  Object.keys(specialOff).forEach(d => (special[d] = special[d] || []));
+  if (!Object.keys(weekly).length) return null;
+  return { weekly, special };
+}
+
+// შუალედების გაერთიანება და გამოკლება (წუთებში)
+function merge_(list) {
+  const out = [];
+  list.slice().sort((a, b) => a[0] - b[0]).forEach(([a, b]) => {
+    const l = out[out.length - 1];
+    if (l && a <= l[1]) l[1] = Math.max(l[1], b); else out.push([a, b]);
   });
   return out;
 }
+function minus_(wins, busy) {
+  let out = merge_(wins);
+  merge_(busy).forEach(([a, b]) => {
+    out = out.reduce((acc, [x, y]) => {
+      if (b <= x || a >= y) acc.push([x, y]);
+      else { if (a > x) acc.push([x, a]); if (b < y) acc.push([b, y]); }
+      return acc;
+    }, []);
+  });
+  return out;
+}
+// ეტევა თუ არა start-დან dur წუთი ერთ თავისუფალ შუალედში
+const fits_ = (wins, start, dur) => (wins || []).some(([a, b]) => start >= a && start + dur <= b);
 
 /* ---------- პირველი გაშვება ----------
    რედაქტორში აირჩიეთ setup და დააჭირეთ Run: შექმნის ცხრილს, მოითხოვს ნებართვებს
@@ -703,6 +794,6 @@ function parseIcs_(text) {
 function setup() {
   const ss = book_();
   console.log("ცხრილი: " + ss.getUrl());
-  notify_("ახალი ინდივიდუალური მოთხოვნა", reqLines_({ name: "ტესტი", phone: "555123456", date: today_(), time: "19:00", people: 2, price: PRICES[2], experience: EXPERIENCE[1] }));
+  notify_("ახალი ინდივიდუალური მოთხოვნა", reqLines_({ name: "ტესტი", phone: "555123456", date: today_(), time: "19:00", people: 2, duration: 90, price: DUR_PRICES[90][2], experience: EXPERIENCE[1] }));
   console.log("სატესტო შეტყობინება გაიგზავნა" + (NOTIFY_EMAIL ? " მეილზე" : "") + (WHATSAPP_PHONE && CALLMEBOT_APIKEY ? " და WhatsApp-ში" : ""));
 }
