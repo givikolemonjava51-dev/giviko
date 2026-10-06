@@ -128,6 +128,7 @@ section { padding-block: 32px; }
 .pack-save { font-size: 13px; color: var(--accent); margin-bottom: 8px; }
 .pack .btn { justify-self: start; }
 @media (prefers-reduced-motion: reduce) { .pack-more { animation: none; } }
+.pk-info { margin: 0; padding-left: 20px; display: grid; gap: 4px; font-size: 14px; }
 .card { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 24px; min-width: 0; }
 .price-table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
 .price-table th { text-align: left; font-weight: 500; }
@@ -843,6 +844,25 @@ table.hist td.n { text-align: right; white-space: nowrap; }
   </form>
 </dialog>
 
+<!-- Individual pack purchase -->
+<dialog id="packDlg">
+  <form class="dlg" id="packForm" novalidate>
+    <h3 data-en="Buy a pack">პაკეტის შეძენა</h3>
+    <div class="meta"><span id="pkWhat"></span><b id="pkPrice" style="white-space:nowrap"></b></div>
+    <ul class="pk-info" id="pkInfo"></ul>
+    <div class="paystep">
+      <b id="pkPayTitle"></b>
+      <span id="pkPayText"></span>
+      <div id="pkPayBox"></div>
+    </div>
+    <p class="msg" id="pkMsg" role="status"></p>
+    <div class="actions">
+      <button class="btn btn-ghost" type="button" id="pkClose" data-en="Close">დახურვა</button>
+      <button class="btn btn-primary" type="submit" id="pkBtn" data-en="Book the pack">პაკეტის დაჯავშნა</button>
+    </div>
+  </form>
+</dialog>
+
 <!-- Cancel / reschedule a session -->
 <dialog id="chgDlg">
   <form class="dlg" id="chgForm" novalidate>
@@ -943,11 +963,12 @@ const IND_PRICES = { 1: 150, 2: 190, 3: 220, 4: 250 };
 const DURS = [60, 90, 120]; // ხანგრძლივობა წუთებში; 1.5 და 2 საათი პროპორციულია
 const durPrice = (m, n) => Math.round(IND_PRICES[n] * m / 60);
 // 8-გაკვეთილიანი პაკეტები (1 საათიანი გაკვეთილები); tier: day = ორშ-პარ 18:00-მდე, eve = 18:00-დან და შაბ-კვ; people = ადამიანების რაოდენობა, old = ძველი ფასი, ხაზგადასმული
+// id ემთხვევა Code.gs-ის PACKS-ს (შეძენისას სერვერი ფასს თავისი ცხრილიდან იღებს)
 const PACKS = [
-  { people: 1, tier: "day", n: 8, price: 880, old: 1200 },
-  { people: 1, tier: "eve", n: 8, price: 1040, old: 1200 },
-  { people: 2, tier: "day", n: 8, price: 1120, old: 1440 },
-  { people: 2, tier: "eve", n: 8, price: 1280, old: 1440 },
+  { id: "1-day", people: 1, tier: "day", n: 8, price: 880, old: 1200 },
+  { id: "1-eve", people: 1, tier: "eve", n: 8, price: 1040, old: 1200 },
+  { id: "2-day", people: 2, tier: "day", n: 8, price: 1120, old: 1440 },
+  { id: "2-eve", people: 2, tier: "eve", n: 8, price: 1280, old: 1440 },
 ];
 const durText = m => (m / 60) + L(" სთ", " h");
 const durLong = m => m === 60 ? L("1 საათი", "1 hour") : (m / 60) + L(" საათი", " hours");
@@ -1137,7 +1158,7 @@ document.addEventListener("click", e => { const b = e.target.closest("[data-auth
 document.querySelectorAll(".auth-tabs button").forEach(b => b.addEventListener("click", () => setMode(b.dataset.mode)));
 $("lgSwitch").addEventListener("click", e => { const a = e.target.closest("[data-to]"); if (a) { e.preventDefault(); setMode(a.dataset.to); } });
 loginDlg.addEventListener("click", e => { if (e.target === loginDlg) loginDlg.close(); });
-$("lgClose").addEventListener("click", () => loginDlg.close());
+$("lgClose").addEventListener("click", () => { wantPack = -1; loginDlg.close(); });
 // PIN: მხოლოდ ციფრები
 document.querySelectorAll("input.pin").forEach(i => i.addEventListener("input", () => { i.value = i.value.replace(/\D/g, "").slice(0, 4); }));
 
@@ -1155,7 +1176,8 @@ $("loginForm").addEventListener("submit", async e => {
     if (res.ok) {
       setStudent(res.token, res.profile);
       $("loginForm").reset(); loginDlg.close();
-      if (stayAfterLogin) { say($("indMsg"), L("შესული ხარ! ახლა გააგზავნე მოთხოვნა.", "You're logged in! Now send your request."), "ok"); renderSchedule(); }
+      if (wantPack >= 0) { const i = wantPack; wantPack = -1; openPackDlg(i); }
+      else if (stayAfterLogin) { say($("indMsg"), L("შესული ხარ! ახლა გააგზავნე მოთხოვნა.", "You're logged in! Now send your request."), "ok"); renderSchedule(); }
       else location.hash = "cabinet";
     } else if (res.error === "no_account") {
       setMode("register");
@@ -1268,11 +1290,13 @@ function renderPacks() {
       </ul>
       <div class="pack-total"><span>${L("ფასი", "Price")}</span><b>${p.price} ₾</b> <s>${p.old} ₾</s></div>
       <div class="pack-save">${L(`ფასდაკლება ${off(p)}% · დაზოგე ${p.old - p.price} ₾ · ${Math.round(p.price / p.n)} ₾ ერთი გაკვეთილი`, `${off(p)}% off · save ${p.old - p.price} ₾ · ${Math.round(p.price / p.n)} ₾ per lesson`)}</div>
-      <a class="btn btn-primary" target="_blank" rel="noopener" href="${waLink(COACH_PHONE, `გამარჯობა! მინდა ${p.n}-გაკვეთილიანი პაკეტი, ${p.people} ადამიანი (${tierName(p.tier)}) - ${p.price} ₾`)}">${L("პაკეტის შეძენა", "Get this pack")}</a>
+      <button class="btn btn-primary" type="button" data-buy="${i}">${L("პაკეტის შეძენა", "Get this pack")}</button>
     </div>` : ""}
   </div>`).join("");
 }
 $("packRows").addEventListener("click", e => {
+  const buy = e.target.closest("[data-buy]");
+  if (buy) return openPackDlg(+buy.dataset.buy);
   const b = e.target.closest("[data-pack]"); if (!b) return;
   openPack = +b.dataset.pack === openPack ? -1 : +b.dataset.pack;
   renderPacks();
@@ -1356,9 +1380,9 @@ document.addEventListener("click", e => {
 
 /* ---------- Payment details ---------- */
 const fmtIban = s => String(s).replace(/\s+/g, "").replace(/(.{4})/g, "$1 ").trim();
-function payHtml(purpose) {
+function payHtml(purpose, amount = GROUP_PRICE) {
   return `<div class="pay">
-    <div class="pay-row amt"><span>${L("თანხა", "Amount")}</span><b>${GROUP_PRICE} ₾</b><span></span></div>
+    <div class="pay-row amt"><span>${L("თანხა", "Amount")}</span><b>${amount} ₾</b><span></span></div>
     <div class="pay-row"><span>${L("ანგარიში", "Account")}</span><code>${esc(fmtIban(BANK.iban))}</code><button type="button" class="copy" data-copy="${esc(BANK.iban.replace(/\s+/g, ""))}">${L("კოპირება", "Copy")}</button></div>
     <div class="pay-row"><span>${L("მიმღები", "Recipient")}</span><b>${esc(L(BANK.name, BANK.nameEn))}${BANK.bank ? ` · <span class="hint">${esc(L(BANK.bank, BANK.bankEn))}</span>` : ""}</b><span></span></div>
     <div class="pay-row"><span>${L("დანიშნულება", "Reference")}</span><b class="purpose">${esc(purpose)}</b><button type="button" class="copy" data-copy="${esc(purpose)}">${L("კოპირება", "Copy")}</button></div>
@@ -1419,6 +1443,46 @@ daysEl.addEventListener("click", e => {
   if (b && !b.disabled) openGroup(b);
 });
 $("dlgClose").addEventListener("click", () => dlg.close());
+
+/* ---------- Pack purchase: same bank-transfer flow as a group pass ---------- */
+const packDlg = $("packDlg");
+let curPack = null, wantPack = -1;
+const packName = p => L(`${p.n}-გაკვეთილიანი პაკეტი · ${p.people} ადამიანი`, `${p.n}-lesson pack · ${ppl(p.people)}`);
+const packPurpose = (name, p) => `${(name || "").trim() || L("შენი სახელი და გვარი", "Your full name")} · ${L("პაკეტი", "Pack")} ${p.n} · ${ppl(p.people)}`;
+function openPackDlg(i) {
+  curPack = PACKS[i];
+  if (!sToken) { wantPack = i; openLogin("register", true); return; }
+  const p = curPack;
+  $("pkWhat").textContent = packName(p);
+  $("pkPrice").textContent = p.price + " ₾";
+  $("pkInfo").innerHTML = `<li>${L(`ჩატარდება ${p.n} ვარჯიში`, `${p.n} sessions`)}</li><li>${L("დროები: ", "Times: ") + packTimes(p.tier)}</li>
+    <li>${L("გაკვეთილების თარიღებზე შეუთანხმდებით მწვრთნელს ინდივიდუალურად", "You agree on the lesson dates with the coach individually")}</li>`;
+  $("pkPayTitle").textContent = L("გადახდა ანგარიშზე", "Pay by bank transfer");
+  $("pkPayText").textContent = L(`დაჯავშნე პაკეტი და გადარიცხე ${p.price} ₾ ამ ანგარიშზე. როგორც კი ჩარიცხვას დავადასტურებ, პაკეტი გააქტიურდება.`,
+    `Book the pack and transfer ${p.price} ₾ to this account. Once I confirm the payment, your pack is activated.`);
+  $("pkPayBox").innerHTML = payHtml(packPurpose(profile?.name, p), p.price);
+  say($("pkMsg"), "");
+  $("pkBtn").hidden = false; $("pkBtn").disabled = false;
+  packDlg.showModal();
+}
+$("pkClose").addEventListener("click", () => packDlg.close());
+packDlg.addEventListener("click", e => { if (e.target === packDlg) packDlg.close(); });
+$("packForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  const btn = $("pkBtn"), p = curPack;
+  btn.disabled = true;
+  try {
+    const res = await api({ action: "pack", pack: p.id, token: sToken });
+    if (res.ok) {
+      setStudent(res.token, res.profile);
+      $("pkPayTitle").textContent = L("პაკეტი დაჯავშნილია ✓", "Pack booked ✓");
+      $("pkPayText").textContent = L(`ახლა გადარიცხე ${p.price} ₾ ამ ანგარიშზე. გადარიცხვისთანავე პაკეტი გააქტიურდება. სტატუსს კაბინეტში ნახავ.`,
+        `Now transfer ${p.price} ₾ to this account. Your pack is activated as soon as the payment arrives. You can check the status in your account.`);
+      btn.hidden = true;
+      burst($("pkPrice"));
+    } else { afterAuthFail(res); say($("pkMsg"), errText(res.error), "err"); btn.disabled = false; }
+  } catch (err) { say($("pkMsg"), errText(), "err"); btn.disabled = false; }
+});
 dlg.addEventListener("click", e => { if (e.target === dlg) dlg.close(); });
 
 const okEmail = v => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
@@ -1726,8 +1790,19 @@ function renderCabinet() {
         : low ? `<div class="renew"><b>${m.remaining === 0 ? L("აბონემენტი ამოიწურა", "Your pass has run out") : L(`დარჩა ${m.remaining} ვარჯიში`, `${m.remaining} ${m.remaining === 1 ? "session" : "sessions"} left`)}</b><span class="hint" style="font-size:13px">${L(`გააგრძელე და იგივე ჯგუფში ადგილი შეგინარჩუნდება: ${GROUP_PRICE} ₾ = ${PASS} ვარჯიში.`, `Renew to keep your spot in the same group: ${GROUP_PRICE} ₾ = ${PASS} sessions.`)}</span><button class="btn btn-primary btn-sm" type="button" data-renew="${esc(m.id)}">${L("აბონემენტის გაგრძელება", "Renew pass")}</button></div>` : ""}
     </div>`;
   }).join("");
+  const packs = (p.packs || []).map(k => {
+    const P = PACKS.find(x => x.id === k.pack), ttl = P ? packName(P) : L("ინდივიდუალური პაკეტი", "Individual pack");
+    return k.status === "ახალი" ? `<div class="pass">
+      <div class="ttl"><b>${esc(ttl)}</b><span class="chip wait">${L("გადახდის მოლოდინში", "Awaiting payment")}</span></div>
+      <div class="hint" style="font-size:13px">${L(`პაკეტი დაჯავშნილია. გადარიცხე ${k.price} ₾ და გადარიცხვისთანავე პაკეტი გააქტიურდება.`, `Your pack is booked. Transfer ${k.price} ₾ and it's activated as soon as the payment arrives.`)}</div>
+      ${P ? payHtml(packPurpose(p.name, P), k.price) : ""}
+    </div>` : `<div class="pass">
+      <div class="ttl"><b>${esc(ttl)}</b><span class="chip acc">${L("აქტიური", "Active")}</span></div>
+      <div class="hint" style="font-size:13px">${L(`${k.lessons} ვარჯიში`, `${k.lessons} sessions`)}${P ? " · " + packTimes(P.tier) : ""}. ${L("გაკვეთილების თარიღებზე შეუთანხმდი მწვრთნელს.", "Agree on the lesson dates with the coach.")}</div>
+    </div>`;
+  }).join("");
   const waits = (p.waitlist || []).map(w => `<div class="wrow"><span>${L("მოლოდინის სიაში:", "On the waiting list:")} <b>${esc(gLabel(w.group) || w.label)}</b></span><button class="btn btn-ghost btn-sm" type="button" data-leave="${esc(w.id)}">${L("გამოსვლა", "Leave")}</button></div>`).join("");
-  $("cabPasses").innerHTML = passes || waits ? passes + waits : `<p class="empty">${L('ჯგუფური აბონემენტი არ გაქვს. 400 ₾ = 8 ვარჯიში. <a href="#groups">აირჩიე ჯგუფი</a>', 'You don\'t have a group pass. 400 ₾ = 8 sessions. <a href="#groups">Pick a group</a>')}</p>`;
+  $("cabPasses").innerHTML = passes || packs || waits ? passes + packs + waits : `<p class="empty">${L('ჯგუფური აბონემენტი არ გაქვს. 400 ₾ = 8 ვარჯიში. <a href="#groups">აირჩიე ჯგუფი</a>', 'You don\'t have a group pass. 400 ₾ = 8 sessions. <a href="#groups">Pick a group</a>')}</p>`;
 
   const fbl = p.feedback || [];
   $("cabFbSec").hidden = !fbl.length;
@@ -2082,11 +2157,25 @@ async function loadMembers() {
   try {
     const res = await api({ action: "admin_members", token: aToken });
     if (!res.ok) return trFail(res);
-    renderMembers(res.members, res.reserved, res.waitlist);
+    renderMembers(res.members, res.reserved, res.waitlist, res.packs);
   } catch (e) { say($("trErr"), errText(), "err"); }
 }
-function renderMembers(list, reserved = {}, waitlist = []) {
-  const np = list.filter(m => m.pending || m.renew).length;
+function packRowsHtml(packs) {
+  if (!packs.length) return "";
+  return `<h3>ინდივიდუალური პაკეტები</h3>` + packs.map(k => {
+    const P = PACKS.find(x => x.id === k.pack), what = P ? `${P.people} ადამ. · ${tierName(P.tier)}` : k.pack;
+    return `<div class="mrow" data-pid="${esc(k.id)}" data-price="${esc(k.price)}">
+      <div><b>${esc(k.name)}</b> <span class="hint" style="font-family:var(--mono)">${fmtPhone(k.phone)}</span><div class="hint" style="font-size:13px">${esc(what)} · ${esc(k.price)} ₾</div></div>
+      <span class="chip ${k.status === "ახალი" ? "wait" : "acc"}">${k.status === "ახალი" ? "გადახდის მოლოდინში" : "აქტიური"}</span>
+      <div class="acts">
+        ${k.status === "ახალი" ? `<button class="btn btn-primary btn-sm" type="button" data-act="ppay">ჩარიცხვა დადასტურდა</button>` : ""}
+        <button class="btn btn-danger btn-sm" type="button" data-act="pcancel">${k.status === "ახალი" ? "უარყოფა" : "გაუქმება"}</button>
+      </div>
+    </div>`;
+  }).join("");
+}
+function renderMembers(list, reserved = {}, waitlist = [], packs = []) {
+  const np = list.filter(m => m.pending || m.renew).length + packs.filter(k => k.status === "ახალი").length;
   $("payBadge").hidden = !np; $("payBadge").textContent = np;
   list = list.slice().sort((a, b) => (b.pending ? 1 : 0) - (a.pending ? 1 : 0));
   const by = {};
@@ -2094,8 +2183,8 @@ function renderMembers(list, reserved = {}, waitlist = []) {
   const wby = {};
   waitlist.forEach(w => (wby[w.group] = wby[w.group] || []).push(w));
   const groups = Object.keys(GROUPS).filter(g => by[g] || reserved[g] || wby[g]);
-  if (!groups.length) { $("memList").innerHTML = `<p class="empty">ჯგუფებში ჯერ არავინ არის ჩაწერილი.</p>`; return; }
-  $("memList").innerHTML = groups.map(g => {
+  if (!groups.length) { $("memList").innerHTML = packRowsHtml(packs) || `<p class="empty">ჯგუფებში ჯერ არავინ არის ჩაწერილი.</p>`; return; }
+  $("memList").innerHTML = packRowsHtml(packs) + groups.map(g => {
     const ms = by[g] || [], r = reserved[g] || 0, total = ms.length + r;
     return `
     <h3>${esc(GROUPS[g].label)} <span class="chip ${total >= CAPACITY ? "no" : ""}">${total >= CAPACITY ? "სავსეა" : total + " / " + CAPACITY}</span></h3>
@@ -2129,16 +2218,19 @@ $("memList").addEventListener("click", async e => {
   const b = e.target.closest("[data-act]");
   if (!b) return;
   const row = b.closest(".mrow"), id = row.dataset.id;
-  if (!b.dataset.sure) { b.dataset.sure = "1"; b.textContent = b.dataset.act === "renew" ? "დაადასტურე +8" : b.dataset.act === "pay" ? "დიახ, ჩაირიცხა 400 ₾" : "დარწმუნებული ხარ?"; return; }
+  if (!b.dataset.sure) { b.dataset.sure = "1"; b.textContent = b.dataset.act === "renew" ? "დაადასტურე +8" : b.dataset.act === "pay" ? `დიახ, ჩაირიცხა ${GROUP_PRICE} ₾` : b.dataset.act === "ppay" ? `დიახ, ჩაირიცხა ${row.dataset.price} ₾` : "დარწმუნებული ხარ?"; return; }
   b.disabled = true;
   try {
-    const res = await api(b.dataset.act === "unwait" ? { action: "admin_waitlist_remove", token: aToken, id: row.dataset.wid }
+    const res = await api(b.dataset.act === "ppay" ? { action: "admin_pack_paid", token: aToken, id: row.dataset.pid }
+      : b.dataset.act === "pcancel" ? { action: "admin_pack_cancel", token: aToken, id: row.dataset.pid }
+      : b.dataset.act === "unwait" ? { action: "admin_waitlist_remove", token: aToken, id: row.dataset.wid }
       : b.dataset.act === "renew"
       ? { action: "admin_renew", token: aToken, member: id, add: PASS }
       : b.dataset.act === "pay" ? { action: "admin_confirm_payment", token: aToken, member: id }
       : { action: "admin_cancel_member", token: aToken, member: id });
     if (!res.ok) { b.disabled = false; return trFail(res); }
-    renderMembers(res.members, res.reserved, res.waitlist);
+    renderMembers(res.members, res.reserved, res.waitlist, res.packs);
+    if (b.dataset.act === "ppay") say($("trErr"), "ჩაირიცხა ✓ პაკეტი გააქტიურდა.", "ok");
     if (b.dataset.act === "pay") {
       const m = (res.members || []).find(x => x.id === id);
       say($("trErr"), res.emailed ? "ჩაირიცხა ✓ მოსწავლეს დასტურის მეილი გაეგზავნა." : "ჩაირიცხა ✓ მოსწავლეს მეილი არ აქვს მითითებული.", "ok");
@@ -2181,7 +2273,7 @@ $("dbSearch").addEventListener("input", renderStudents);
 /* ================= DEMO BACKEND =================
    მუშაობს მხოლოდ მაშინ, როცა API_URL ცარიელია. მონაცემები მეხსიერებაშია. */
 // დემო: რეალური სურათი — ნინო (mw-19), მოსწავლე 2 (tt-20), მოსწავლე 3 (tt-21) + საიტის გარეშე დაკავებული
-const M = { students: [], groups: [], inds: [], att: [], wait: [], changes: [], fb: [], seq: 100, reserved: { "mw-19": 0, "mw-20": 4, "mw-21": 4, "mw-22": 0, "tt-19": 4, "tt-20": 0, "tt-21": 2, "tt-22": 0, "ss-09": 0, "ss-10": 0, "ss-18": 4 } };
+const M = { students: [], groups: [], inds: [], att: [], wait: [], changes: [], fb: [], packs: [], seq: 100, reserved: { "mw-19": 0, "mw-20": 4, "mw-21": 4, "mw-22": 0, "tt-19": 4, "tt-20": 0, "tt-21": 2, "tt-22": 0, "ss-09": 0, "ss-10": 0, "ss-18": 4 } };
 function mockSeed() {
   const t = todayStr();
   const past = (days, n) => { const out = []; let d = addDays(t, -1); while (out.length < n) { if (days.includes(parseYmd(d).getDay())) out.push(d); d = addDays(d, -1); } return out.reverse(); };
@@ -2239,6 +2331,7 @@ function mockApi(d) {
       memberships: M.groups.filter(g => g.phone === phone && g.active).map(g => ({ id: g.id, group: g.group, label: GROUPS[g.group].label, days: GROUPS[g.group].days, time: GROUPS[g.group].time, since: g.created, pending: !!g.pending, renew: !!g.renew, purchased: g.purchased, used: used(g.id), remaining: Math.max(0, g.purchased - used(g.id)) })),
       individual: M.inds.filter(r => r.phone === phone && r.status !== "გაუქმებული").map(r => ({ ...r })),
       waitlist: wl().filter(w => w.phone === phone).map(w => ({ id: w.id, group: w.group, label: GROUPS[w.group].label })),
+      packs: M.packs.filter(k => k.phone === phone && k.status !== "გაუქმებული").map(k => ({ ...k })),
       changes: M.changes.filter(c => c.phone === phone).map(c => ({ ...c })),
       feedback: M.fb.filter(f => f.phone === phone && f.text).sort((a, b) => (a.date < b.date ? 1 : -1)).map(f => ({ date: f.date, label: f.label, text: f.text })),
       history: att.slice().sort((a, b) => (a.date < b.date ? 1 : -1)).map(a => ({ date: a.date, kind: a.kind, label: a.label, status: a.status })),
@@ -2268,7 +2361,8 @@ function mockApi(d) {
   const reqs = () => ({ ok: true, requests: M.inds.filter(r => r.status === "ახალი" || (r.status === "დადასტურებული" && r.date >= todayStr())).sort((a, b) => (a.date + a.time < b.date + b.time ? -1 : 1)).map(r => ({ ...r })),
     changes: M.changes.filter(c => c.action === "reschedule" && c.status === "ახალი").map(pubChg) });
   const mems = () => ({ ok: true, members: M.groups.filter(g => g.active).map(g => ({ id: g.id, group: g.group, label: GROUPS[g.group].label, name: g.name, phone: g.phone, pending: !!g.pending, renew: !!g.renew, purchased: g.purchased, used: used(g.id), remaining: Math.max(0, g.purchased - used(g.id)) })), reserved: { ...M.reserved },
-    waitlist: wl().map(w => ({ ...w })) });
+    waitlist: wl().map(w => ({ ...w })),
+    packs: M.packs.filter(k => k.status !== "გაუქმებული").sort((a, b) => (a.status === "ახალი" ? 0 : 1) - (b.status === "ახალი" ? 0 : 1)).map(k => ({ ...k })) });
   try {
     switch (d.action) {
       case "counts": return { ok: true, counts: cnt(), free: free() };
@@ -2383,6 +2477,15 @@ function mockApi(d) {
         return { ...reqs(), emailed: !!(M.students.find(x => x.phone === r.phone) || {}).email };
       }
       case "admin_members": admin(); return mems();
+      case "pack": {
+        if (!d.token) fail("login_required");
+        const s = who(), P = PACKS.find(x => x.id === d.pack); if (!P) fail("invalid");
+        if (!M.packs.some(k => k.phone === s.phone && k.pack === P.id && k.status === "ახალი"))
+          M.packs.push({ id: "P" + ++M.seq, pack: P.id, name: s.name, phone: s.phone, people: P.people, lessons: P.n, price: P.price, status: "ახალი", created: todayStr() });
+        return { ok: true, token: "s:" + s.phone, profile: prof(s.phone) };
+      }
+      case "admin_pack_paid":
+      case "admin_pack_cancel": { admin(); const k = M.packs.find(x => x.id === d.id); if (!k) fail("invalid"); k.status = d.action === "admin_pack_paid" ? "აქტიური" : "გაუქმებული"; return mems(); }
       case "admin_students": admin(); return { ok: true, students: M.students.map(s => {
         const mine = M.groups.filter(g => g.phone === s.phone && g.active);
         const done = M.att.filter(a => a.phone === s.phone && a.status === "მოვიდა").map(a => a.date).sort();
