@@ -17,7 +17,14 @@ const CAPACITY = 4;
 const PASS = 8;
 // ინდივიდუალური ვარჯიშის 1 საათის ფასი ადამიანების მიხედვით (ნებისმიერ დღეს და დროს)
 const IND_PRICES = { 1: 150, 2: 190, 3: 220, 4: 250 };
-const DURS = [60, 90, 120]; // ხანგრძლივობა წუთებში; 1.5 და 2 საათი პროპორციულია
+const DURS = [60, 90, 120];
+// 8-გაკვეთილიანი ინდივიდუალური პაკეტები; id ემთხვევა index.html-ის PACKS-ს
+const PACKS = {
+  "1-day": { people: 1, lessons: 8, price: 880, label: "1 ადამიანი · ორშ-პარ 18:00-მდე" },
+  "1-eve": { people: 1, lessons: 8, price: 1040, label: "1 ადამიანი · 18:00-დან და შაბ-კვ" },
+  "2-day": { people: 2, lessons: 8, price: 1120, label: "2 ადამიანი · ორშ-პარ 18:00-მდე" },
+  "2-eve": { people: 2, lessons: 8, price: 1280, label: "2 ადამიანი · 18:00-დან და შაბ-კვ" },
+}; // ხანგრძლივობა წუთებში; 1.5 და 2 საათი პროპორციულია
 // სტატისტიკა: ტრენერის სუფთა მოგება ერთ ვარჯიშზე
 const PROFIT_IND_HOUR = 80;              // ინდივიდუალური, 1 საათზე (1.5 სთ = 120, 2 სთ = 160)
 const PROFIT_GROUP = { 3: 75, 4: 120 };  // ჯგუფი ადამიანების მიხედვით; 2 ან ნაკლები = 0
@@ -48,6 +55,7 @@ const TABLES = {
   Changes: ["id", "kind", "ref", "name", "phone", "date", "time", "action", "newDate", "newTime", "status", "created"],
   Feedback: ["date", "member", "phone", "name", "label", "text", "updated"],
   Free: ["date", "from", "to", "source"],
+  Packs: ["id", "pack", "name", "phone", "people", "lessons", "price", "status", "created"],
 };
 // ცხრილების აღწერა: როცა იცვლება, ძველ ცხრილს ემატება ახალი ფურცლები და სვეტები
 const SCHEMA = Object.keys(TABLES).map(k => k + ":" + TABLES[k].length).join(",");
@@ -232,6 +240,8 @@ function route_(d, db) {
   const wl = () => db.all("Waitlist").filter(w => w.status === "active"), chg = () => db.all("Changes");
   const reserved = () => { const r = {}; db.all("Reserved").forEach(x => (r[x.group] = Number(x.count) || 0)); return r; };
   const fbs = () => db.all("Feedback");
+  // პაკეტის სტატუსი: ახალი (გადახდის მოლოდინში) → აქტიური (ჩარიცხვა დადასტურდა) ან გაუქმებული
+  const packs = () => db.all("Packs").filter(k => k.status !== "გაუქმებული");
   const used = id => att().filter(a => a.member === id).length;
   // ტრენერის თავისუფალი შუალედები (ფურცელი Free) წუთებში: { "2026-10-05": [[600, 780], [960, 1080]] }.
   // დაკავებულია: უკვე მოთხოვნილი ინდივიდუალური (მთელი ხანგრძლივობით), ჯგუფური საათები და დღევანდელი გასული დრო.
@@ -298,6 +308,7 @@ function route_(d, db) {
       }),
       individual: inds().filter(r => r.phone === phone && r.status !== "გაუქმებული").map(pubReq_),
       waitlist: wl().filter(w => w.phone === phone && GROUPS[w.group]).map(w => ({ id: w.id, group: w.group, label: GROUPS[w.group].label })),
+      packs: packs().filter(k => k.phone === phone).map(pubPack_),
       changes: chg().filter(c => c.phone === phone).map(pubChg_),
       feedback: fbs().filter(f => f.phone === phone && f.text).sort((a, b) => (a.date < b.date ? 1 : -1)).map(f => ({ date: f.date, label: f.label, text: f.text })),
       history: mine.slice().sort((a, b) => (a.date < b.date ? 1 : -1)).map(a => ({ date: a.date, kind: a.kind, label: a.label, status: a.status })),
@@ -349,7 +360,8 @@ function route_(d, db) {
   const mems = () => ({ ok: true, reserved: reserved(), members: groups().filter(g => active(g) && GROUPS[g.group]).map(g => {
     const u = used(g.id), p = Number(g.purchased) || 0;
     return { id: g.id, group: g.group, label: GROUPS[g.group].label, name: g.name, phone: g.phone, pending: bool_(g.pending), renew: bool_(g.renew), purchased: p, used: u, remaining: Math.max(0, p - u) };
-  }), waitlist: wl().filter(w => GROUPS[w.group]).map(w => ({ id: w.id, group: w.group, name: w.name, phone: w.phone, created: w.created })) });
+  }), waitlist: wl().filter(w => GROUPS[w.group]).map(w => ({ id: w.id, group: w.group, name: w.name, phone: w.phone, created: w.created })),
+    packs: packs().slice().sort((a, b) => (a.status === "ახალი" ? 0 : 1) - (b.status === "ახალი" ? 0 : 1)).map(pubPack_) });
   const seatFreed = gid => {
     const next = wl().filter(w => w.group === gid);
     if (next.length) notify_("ადგილი გათავისუფლდა", ["ჯგუფი: " + GROUPS[gid].label, "მოლოდინის სიაში " + next.length + " ადამიანია. პირველი:", next[0].name + " · " + next[0].phone]);
@@ -402,6 +414,17 @@ function route_(d, db) {
       const r = db.add("Requests", { id: db.nextId("I"), people, duration, price: indPrice_(duration, people), date: d.date, time: d.time, name: s.name, phone: s.phone, experience: d.experience, status: "ახალი", created: today_() });
       notify_("ახალი ინდივიდუალური მოთხოვნა", reqLines_(r));
       return { ok: true, token: sToken(s.phone), free: free() };
+    }
+
+    case "pack": {
+      if (!d.token) fail_("login_required");
+      const s = who(), P = PACKS[d.pack]; if (!P) fail_("invalid");
+      // ერთი და იგივე გადაუხდელი პაკეტი ორჯერ არ ჩაიწეროს
+      if (!packs().some(k => k.phone === s.phone && k.pack === d.pack && k.status === "ახალი")) {
+        db.add("Packs", { id: db.nextId("P"), pack: d.pack, name: s.name, phone: s.phone, people: P.people, lessons: P.lessons, price: P.price, status: "ახალი", created: today_() });
+        notify_("ახალი პაკეტის შეძენა", ["სახელი: " + s.name, "ტელეფონი: " + s.phone, "პაკეტი: " + P.lessons + " გაკვეთილი · " + P.label, "თანხა: " + P.price + " ₾", "ჩარიცხვის შემდეგ პანელში დააჭირე „ჩარიცხვა დადასტურდა“."]);
+      }
+      return { ok: true, token: sToken(s.phone), profile: prof(s.phone) };
     }
 
     case "waitlist": {
@@ -596,6 +619,14 @@ function route_(d, db) {
       return reqs();
     }
 
+    case "admin_pack_paid":
+    case "admin_pack_cancel": {
+      admin();
+      const k = packs().find(x => x.id === d.id); if (!k) fail_("invalid");
+      k.status = d.action === "admin_pack_paid" ? "აქტიური" : "გაუქმებული"; db.save("Packs", k);
+      return mems();
+    }
+
     case "admin_waitlist_remove": {
       admin();
       const w = wl().find(x => x.id === d.id); if (!w) fail_("invalid");
@@ -608,6 +639,9 @@ function route_(d, db) {
 
 function pubReq_(r) {
   return { id: r.id, people: Number(r.people), duration: dur_(r), price: Number(r.price), date: r.date, time: r.time, name: r.name, phone: r.phone, experience: r.experience, status: r.status, note: r.note || "" };
+}
+function pubPack_(k) {
+  return { id: k.id, pack: k.pack, name: k.name, phone: k.phone, people: Number(k.people), lessons: Number(k.lessons), price: Number(k.price), status: k.status, created: k.created };
 }
 function pubChg_(c) {
   return { id: c.id, kind: c.kind, ref: c.ref, name: c.name, phone: c.phone, date: c.date, time: c.time, action: c.action, newDate: c.newDate, newTime: c.newTime, status: c.status };
