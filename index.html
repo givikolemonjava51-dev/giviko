@@ -103,12 +103,23 @@ section { padding-block: 32px; }
 .ptier-name { font-size: 13px; font-weight: 700; color: var(--muted); }
 .packs { padding: 18px 20px; margin-bottom: 24px; }
 #packToggle[aria-expanded="true"] { border-color: var(--accent); }
-.pack-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 12px; }
+.pack-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 12px; align-items: start; }
 .sale { display: inline-block; padding: 2px 8px; border-radius: 999px; background: var(--sale); color: #fff; font-size: 12px; font-weight: 800; white-space: nowrap; }
 #packToggle { display: inline-flex; align-items: center; gap: 6px; }
 .pack .sale { position: absolute; top: 12px; right: 12px; font-size: 14px; }
-.pack > .ptier-name { padding-right: 56px; }
-.pack { position: relative; display: grid; gap: 4px; align-content: start; padding: 14px; background: var(--bg); border: 1px solid var(--line); border-radius: 12px; }
+.pack .ptier-name { padding-right: 56px; }
+.pack { position: relative; background: var(--bg); border: 1px solid var(--line); border-radius: 12px; transition: border-color .2s ease; }
+.pack:hover { border-color: var(--accent); }
+.pack.open { border-color: var(--accent); box-shadow: 0 8px 28px rgba(0,0,0,.35); }
+.pack-head { display: grid; gap: 4px; width: 100%; padding: 14px; background: none; border: 0; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.pack.open .pack-price { display: none; }
+.pack-more { display: grid; gap: 8px; padding: 0 14px 16px; animation: packIn .25s ease; }
+.pack-more ul { margin: 0 0 4px; padding-left: 20px; display: grid; gap: 4px; }
+.pack-total { display: flex; align-items: baseline; gap: 10px; font-variant-numeric: tabular-nums; }
+.pack-total span { color: var(--muted); }
+.pack-total b { font-family: var(--display); font-stretch: 62.5%; font-weight: 900; font-size: 44px; line-height: 1; }
+.pack-total s { color: var(--muted); font-size: 20px; }
+@keyframes packIn { from { opacity: 0; transform: translateY(-6px); } }
 .pack-n { font-weight: 700; display: flex; align-items: center; gap: 8px; }
 .pack-n .people { margin: 0; }
 .pack-price { font-variant-numeric: tabular-nums; }
@@ -116,6 +127,7 @@ section { padding-block: 32px; }
 .pack-price s { color: var(--muted); font-size: 18px; margin-left: 6px; }
 .pack-save { font-size: 13px; color: var(--accent); margin-bottom: 8px; }
 .pack .btn { justify-self: start; }
+@media (prefers-reduced-motion: reduce) { .pack-more { animation: none; } }
 .card { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 24px; min-width: 0; }
 .price-table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
 .price-table th { text-align: left; font-weight: 500; }
@@ -1235,17 +1247,37 @@ function renderPrices(m, anim) {
     return `<div class="ptile" style="--i:${n}">${peopleIcon(+n)}<span class="pn">${L(n + " ადამ.", ppl(n))}</span><b${anim ? ' class="roll"' : ""}>${p} ₾</b><span class="pp${anim ? " roll" : ""}">${Math.round(p / n)} ₾ / ${L("ადამ.", "person")}</span></div>`; }).join("");
 }
 const off = p => Math.round((1 - p.price / p.old) * 100);
+const packTimes = t => t === "day" ? L("ორშაბათი-პარასკევი 18:00-მდე", "Monday-Friday before 18:00")
+  : L("ორშაბათი-პარასკევი 18:00-დან, შაბათ-კვირა ნებისმიერ დროს", "Monday-Friday from 18:00, Saturday-Sunday any time");
+// სიაში მოკლედ ჩანს; პაკეტზე დაჭერით იშლება ინფო, ფასი და შეძენის ღილაკი (ერთდროულად ერთი)
+let openPack = -1;
 function renderPacks() {
   $("packSale").textContent = "🔥 " + L(`-${Math.max(...PACKS.map(off))}%-მდე`, `up to -${Math.max(...PACKS.map(off))}%`);
-  $("packRows").innerHTML = PACKS.map(p => `<div class="pack">
-    <div class="ptier-name">${tierName(p.tier)}</div>
-    <div class="pack-n">${peopleIcon(p.people)} ${ppl(p.people)} · ${L(`${p.n} გაკვეთილი`, `${p.n} lessons`)}</div>
-    <span class="sale">-${off(p)}%</span>
-    <div class="pack-price"><b>${p.price} ₾</b> <s>${p.old} ₾</s></div>
-    <div class="pack-save">${L(`დაზოგე ${p.old - p.price} ₾ · ${Math.round(p.price / p.n)} ₾ ერთი გაკვეთილი`, `Save ${p.old - p.price} ₾ · ${Math.round(p.price / p.n)} ₾ per lesson`)}</div>
-    <a class="btn btn-ghost btn-sm" target="_blank" rel="noopener" href="${waLink(COACH_PHONE, `გამარჯობა! მინდა ${p.n}-გაკვეთილიანი პაკეტი, ${p.people} ადამიანი (${tierName(p.tier)}) - ${p.price} ₾`)}">${L("პაკეტის შეძენა", "Get this pack")}</a>
+  $("packRows").innerHTML = PACKS.map((p, i) => `<div class="pack${i === openPack ? " open" : ""}">
+    <button type="button" class="pack-head" data-pack="${i}" aria-expanded="${i === openPack}">
+      <span class="ptier-name">${tierName(p.tier)}</span>
+      <span class="pack-n">${peopleIcon(p.people)} ${ppl(p.people)} · ${L(`${p.n} გაკვეთილი`, `${p.n} lessons`)}</span>
+      <span class="sale">-${off(p)}%</span>
+      <span class="pack-price"><b>${p.price} ₾</b> <s>${p.old} ₾</s></span>
+    </button>
+    ${i === openPack ? `<div class="pack-more">
+      <ul>
+        <li>${L(`ჩატარდება ${p.n} ვარჯიში`, `${p.n} sessions`)}</li>
+        <li>${L("დროები: ", "Times: ") + packTimes(p.tier)}</li>
+        <li>${L("გაკვეთილების თარიღებზე შეუთანხმდებით მწვრთნელს ინდივიდუალურად", "You agree on the lesson dates with the coach individually")}</li>
+      </ul>
+      <div class="pack-total"><span>${L("ფასი", "Price")}</span><b>${p.price} ₾</b> <s>${p.old} ₾</s></div>
+      <div class="pack-save">${L(`ფასდაკლება ${off(p)}% · დაზოგე ${p.old - p.price} ₾ · ${Math.round(p.price / p.n)} ₾ ერთი გაკვეთილი`, `${off(p)}% off · save ${p.old - p.price} ₾ · ${Math.round(p.price / p.n)} ₾ per lesson`)}</div>
+      <a class="btn btn-primary" target="_blank" rel="noopener" href="${waLink(COACH_PHONE, `გამარჯობა! მინდა ${p.n}-გაკვეთილიანი პაკეტი, ${p.people} ადამიანი (${tierName(p.tier)}) - ${p.price} ₾`)}">${L("პაკეტის შეძენა", "Get this pack")}</a>
+    </div>` : ""}
   </div>`).join("");
 }
+$("packRows").addEventListener("click", e => {
+  const b = e.target.closest("[data-pack]"); if (!b) return;
+  openPack = +b.dataset.pack === openPack ? -1 : +b.dataset.pack;
+  renderPacks();
+  if (openPack >= 0) $("packRows").children[openPack].scrollIntoView({ block: "nearest", behavior: "smooth" });
+});
 $("priceDur").addEventListener("click", e => { const b = e.target.closest("[data-m]"); if (b && +b.dataset.m !== priceM) renderPrices(+b.dataset.m, true); });
 renderPrices(60); renderPacks();
 $("packToggle").addEventListener("click", e => {
