@@ -1447,8 +1447,13 @@ function fillTimes() {
       <span class="dn">${x.getDate()}</span>
       <span class="cnt">${n ? n + " " + L("დრო", n === 1 ? "slot" : "slots") : MON[x.getMonth()]}</span></button>`;
   }).join("");
-  const sel = $("dayStrip").querySelector('[aria-checked="true"]');
-  if (sel) sel.scrollIntoView({ block: "nearest", inline: "nearest" });
+  // მხოლოდ ზოლი გადავახვიოთ ჰორიზონტალურად; scrollIntoView მთელ გვერდს ქვემოთ ჩამოწევდა ჩატვირთვისას
+  const strip = $("dayStrip"), sel = strip.querySelector('[aria-checked="true"]');
+  if (sel) {
+    const l = sel.offsetLeft - strip.offsetLeft, r = l + sel.offsetWidth;
+    if (l < strip.scrollLeft) strip.scrollLeft = l;
+    else if (r > strip.scrollLeft + strip.clientWidth) strip.scrollLeft = r - strip.clientWidth;
+  }
   renderSlots();
 }
 function renderSlots() {
