@@ -99,13 +99,13 @@ section { padding-block: 32px; }
 .ptile .pn { font-size: 13px; color: var(--muted); }
 .ptile b { font-family: var(--display); font-stretch: 62.5%; font-weight: 900; font-size: 26px; line-height: 1.1; white-space: nowrap; }
 .ptile .pp { font-size: 12px; color: var(--muted); white-space: nowrap; }
-.ptier { margin-top: 14px; }
-.ptier .ptiles { margin-top: 6px; }
 .ptier-name { font-size: 13px; font-weight: 700; color: var(--muted); }
-.packs { grid-column: 1 / -1; padding: 18px 20px; }
+.packs { padding: 18px 20px; margin-bottom: 24px; }
+#packToggle[aria-expanded="true"] { border-color: var(--accent); }
 .pack-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 12px; }
 .pack { display: grid; gap: 4px; align-content: start; padding: 14px; background: var(--bg); border: 1px solid var(--line); border-radius: 12px; }
-.pack-n { font-weight: 700; }
+.pack-n { font-weight: 700; display: flex; align-items: center; gap: 8px; }
+.pack-n .people { margin: 0; }
 .pack-price { font-variant-numeric: tabular-nums; }
 .pack-price b { font-family: var(--display); font-stretch: 62.5%; font-weight: 900; font-size: 34px; line-height: 1.1; }
 .pack-price s { color: var(--muted); font-size: 18px; margin-left: 6px; }
@@ -555,7 +555,7 @@ table.hist td.n { text-align: right; white-space: nowrap; }
           <div class="label" id="priceLbl">ინდივიდუალური · 1 საათი</div>
           <div id="priceDur" role="group" aria-label="ხანგრძლივობა" data-en-aria-label="Duration"></div>
         </div>
-        <div id="priceRows"></div>
+        <div class="ptiles" id="priceRows"></div>
       </div>
       <div class="card sub">
         <div class="label" data-en="Group pass">ჯგუფური აბონემენტი</div>
@@ -564,10 +564,6 @@ table.hist td.n { text-align: right; white-space: nowrap; }
         <p data-en="twice a week · max. 4 people">კვირაში 2-ჯერ · მაქს. 4 ადამიანი</p>
         <p class="pass-rule" data-en="A missed lesson counts as held and is not made up.">გაცდენილი გაკვეთილი ჩატარებულად ითვლება და არ აღდგება.</p>
         <div class="math" data-en="= 50 ₾ per session">= 50 ₾ ერთი ვარჯიში</div>
-      </div>
-      <div class="card packs">
-        <div class="label" data-en="Individual packs · 1 person · 1 hour">ინდივიდუალური პაკეტები · 1 ადამიანი · 1 საათი</div>
-        <div class="pack-grid" id="packRows"></div>
       </div>
     </div>
   </section>
@@ -586,7 +582,12 @@ table.hist td.n { text-align: right; white-space: nowrap; }
   </section>
 
   <section id="individual">
-    <div class="sec-head"><h2 data-en="Individual training">ინდივიდუალური ვარჯიში</h2></div>
+    <div class="sec-head"><h2 data-en="Individual training">ინდივიდუალური ვარჯიში</h2>
+      <button class="btn btn-ghost btn-sm" type="button" id="packToggle" aria-expanded="false" aria-controls="packs" data-en="Individual packs">ინდივიდუალური პაკეტები</button></div>
+    <div class="card packs" id="packs" hidden>
+      <div class="label" data-en="Individual packs · 8 one-hour lessons">ინდივიდუალური პაკეტები · 8 ერთსაათიანი გაკვეთილი</div>
+      <div class="pack-grid" id="packRows"></div>
+    </div>
     <div class="ind">
       <div>
         <p style="margin-top:0" data-en="Choose the length, how many people will train and a time that suits you. I'll call you to confirm.">აირჩიე ხანგრძლივობა, რამდენი ადამიანი ივარჯიშებს და სასურველი დრო. დაგიკავშირდები ტელეფონით და დავადასტურებთ.</p>
@@ -631,7 +632,7 @@ table.hist td.n { text-align: right; white-space: nowrap; }
             <input type="radio" name="exp" id="exp2" value="1+ წელი"><label for="exp2"><b class="t" data-en="1+ years">1+ წელი</b></label>
           </div>
         </fieldset>
-        <div class="total"><span data-en="Total to pay">სულ გადასახდელი</span><b id="indTotal">130 ₾</b></div>
+        <div class="total"><span data-en="Total to pay">სულ გადასახდელი</span><b id="indTotal">150 ₾</b></div>
         <button class="btn btn-primary" type="submit" id="indBtn" data-en="Book training">ვარჯიშზე ჩაწერა</button>
         <p class="msg" id="indMsg" role="status"></p>
       </form>
@@ -920,19 +921,16 @@ const ppl = n => L(`${n} ადამიანი`, `${n} ${+n === 1 ? "person" 
 
 const CAPACITY = 4;
 const PASS = 8;
-// ინდივიდუალური ვარჯიშის 1 საათის ფასი ადამიანების მიხედვით; ემთხვევა Code.gs-ს
-// day = ორშ-პარ 18:00-მდე, eve = 18:00-დან და შაბ-კვ ნებისმიერ დროს (ითვლება დაწყების დროით)
-const IND_PRICES = {
-  day: { 1: 130, 2: 170, 3: 200, 4: 230 },
-  eve: { 1: 150, 2: 190, 3: 220, 4: 250 },
-};
-const IND_EVE_FROM = "18:00";
+// ინდივიდუალური ვარჯიშის 1 საათის ფასი ადამიანების მიხედვით (ნებისმიერ დღეს და დროს); ემთხვევა Code.gs-ს
+const IND_PRICES = { 1: 150, 2: 190, 3: 220, 4: 250 };
 const DURS = [60, 90, 120]; // ხანგრძლივობა წუთებში; 1.5 და 2 საათი პროპორციულია
-const tierPrice = (tier, m, n) => Math.round(IND_PRICES[tier][n] * m / 60);
-// 8-გაკვეთილიანი პაკეტები (1 ადამიანი, 1 საათი); old = ძველი ფასი, ხაზგადასმული
+const durPrice = (m, n) => Math.round(IND_PRICES[n] * m / 60);
+// 8-გაკვეთილიანი პაკეტები (1 საათიანი გაკვეთილები); tier: day = ორშ-პარ 18:00-მდე, eve = 18:00-დან და შაბ-კვ; people = ადამიანების რაოდენობა, old = ძველი ფასი, ხაზგადასმული
 const PACKS = [
-  { tier: "day", n: 8, price: 880, old: 1040 },
-  { tier: "eve", n: 8, price: 1040, old: 1200 },
+  { people: 1, tier: "day", n: 8, price: 880, old: 1200 },
+  { people: 1, tier: "eve", n: 8, price: 1040, old: 1200 },
+  { people: 2, tier: "day", n: 8, price: 1120, old: 1440 },
+  { people: 2, tier: "eve", n: 8, price: 1280, old: 1440 },
 ];
 const durText = m => (m / 60) + L(" სთ", " h");
 const durLong = m => m === 60 ? L("1 საათი", "1 hour") : (m / 60) + L(" საათი", " hours");
@@ -970,9 +968,7 @@ const gid = (day, h) => day.key + "-" + h.slice(0, 2);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const ymd = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 const parseYmd = s => { const [y, m, d] = s.split("-").map(Number); return new Date(y, m - 1, d); };
-const isWeekend = s => [0, 6].includes(parseYmd(s).getDay());
-const indTier = (date, time) => isWeekend(date) || time >= IND_EVE_FROM ? "eve" : "day";
-const indPrice = (date, time, m, n) => DURS.includes(m) && IND_PRICES.day[n] ? tierPrice(indTier(date, time), m, n) : 0;
+const indPrice = (m, n) => DURS.includes(m) && IND_PRICES[n] ? durPrice(m, n) : 0;
 const tierName = t => t === "day" ? L("ორშ-პარ · 18:00-მდე", "Mon-Fri · before 18:00") : L("18:00-დან · შაბ-კვ ნებისმიერ დროს", "From 18:00 · Sat-Sun any time");
 const addDays = (s, n) => { const d = parseYmd(s); d.setDate(d.getDate() + n); return ymd(d); };
 const todayStr = () => ymd(new Date());
@@ -1230,21 +1226,24 @@ function renderPrices(m, anim) {
   $("priceLbl").textContent = L("ინდივიდუალური · ", "Individual · ") + durLong(m);
   $("priceDur").innerHTML = DURS.map(k =>
     `<button type="button" class="chip-btn" data-m="${k}" aria-pressed="${k === m}">${durText(k)}</button>`).join("");
-  $("priceRows").innerHTML = ["day", "eve"].map(tier => `<div class="ptier"><div class="ptier-name">${tierName(tier)}</div><div class="ptiles">` +
-    Object.keys(IND_PRICES[tier]).map(n => { const p = tierPrice(tier, m, n);
-      return `<div class="ptile" style="--i:${n}">${peopleIcon(+n)}<span class="pn">${L(n + " ადამ.", ppl(n))}</span><b${anim ? ' class="roll"' : ""}>${p} ₾</b><span class="pp${anim ? " roll" : ""}">${Math.round(p / n)} ₾ / ${L("ადამ.", "person")}</span></div>`; }).join("") + "</div></div>").join("");
+  $("priceRows").innerHTML = Object.keys(IND_PRICES).map(n => { const p = durPrice(m, n);
+    return `<div class="ptile" style="--i:${n}">${peopleIcon(+n)}<span class="pn">${L(n + " ადამ.", ppl(n))}</span><b${anim ? ' class="roll"' : ""}>${p} ₾</b><span class="pp${anim ? " roll" : ""}">${Math.round(p / n)} ₾ / ${L("ადამ.", "person")}</span></div>`; }).join("");
 }
 function renderPacks() {
   $("packRows").innerHTML = PACKS.map(p => `<div class="pack">
     <div class="ptier-name">${tierName(p.tier)}</div>
-    <div class="pack-n">${L(`${p.n} გაკვეთილი`, `${p.n} lessons`)}</div>
+    <div class="pack-n">${peopleIcon(p.people)} ${ppl(p.people)} · ${L(`${p.n} გაკვეთილი`, `${p.n} lessons`)}</div>
     <div class="pack-price"><b>${p.price} ₾</b> <s>${p.old} ₾</s></div>
     <div class="pack-save">${L(`დაზოგე ${p.old - p.price} ₾ · ${Math.round(p.price / p.n)} ₾ ერთი გაკვეთილი`, `Save ${p.old - p.price} ₾ · ${Math.round(p.price / p.n)} ₾ per lesson`)}</div>
-    <a class="btn btn-ghost btn-sm" target="_blank" rel="noopener" href="${waLink(COACH_PHONE, `გამარჯობა! მინდა ${p.n}-გაკვეთილიანი პაკეტი (${tierName(p.tier)}) - ${p.price} ₾`)}">${L("პაკეტის შეძენა", "Get this pack")}</a>
+    <a class="btn btn-ghost btn-sm" target="_blank" rel="noopener" href="${waLink(COACH_PHONE, `გამარჯობა! მინდა ${p.n}-გაკვეთილიანი პაკეტი, ${p.people} ადამიანი (${tierName(p.tier)}) - ${p.price} ₾`)}">${L("პაკეტის შეძენა", "Get this pack")}</a>
   </div>`).join("");
 }
 $("priceDur").addEventListener("click", e => { const b = e.target.closest("[data-m]"); if (b && +b.dataset.m !== priceM) renderPrices(+b.dataset.m, true); });
 renderPrices(60); renderPacks();
+$("packToggle").addEventListener("click", e => {
+  const open = e.currentTarget.getAttribute("aria-expanded") !== "true";
+  e.currentTarget.setAttribute("aria-expanded", open); $("packs").hidden = !open;
+});
 
 /* ---------- Schedule ---------- */
 let counts = saved("gv_c");
@@ -1446,15 +1445,11 @@ const seg = $("seg"), durSeg = $("durSeg");
 durSeg.innerHTML = DURS.map(m =>
   `<input type="radio" name="dur" id="d${m}" value="${m}" ${m === 60 ? "checked" : ""}><label for="d${m}"><b>${durText(m)}</b></label>`).join("");
 const curDur = () => +durSeg.querySelector("input:checked").value;
-// ფასის კატეგორია არჩეული დღის/დროის მიხედვით; null = სამუშაო დღე, დრო ჯერ არ არის არჩეული
-const curTier = () => { const d = $("indDate").value, t = $("indTime").value;
-  return d && t ? indTier(d, t) : d && isWeekend(d) ? "eve" : null; };
-const priceText = (m, n) => { const t = curTier();
-  return t ? tierPrice(t, m, n) + " ₾" : `${tierPrice("day", m, n)}-${tierPrice("eve", m, n)} ₾`; };
+const priceText = (m, n) => durPrice(m, n) + " ₾";
 const curPeople = () => (seg.querySelector("input:checked") || {}).value || "1";
 function renderPeople(anim) {
   const n = curPeople(), m = curDur();
-  seg.innerHTML = Object.keys(IND_PRICES.day).map(k =>
+  seg.innerHTML = Object.keys(IND_PRICES).map(k =>
     `<input type="radio" name="people" id="p${k}" value="${k}" ${k === n ? "checked" : ""}><label for="p${k}"><b>${k}</b><span${anim ? ` class="roll" style="--i:${k}"` : ""}>${priceText(m, k)}</span></label>`).join("");
   setTotal(priceText(m, n), anim);
 }
@@ -1466,9 +1461,6 @@ function setTotal(v, anim) {
 renderPeople();
 seg.addEventListener("change", () => setTotal(priceText(curDur(), curPeople()), true));
 durSeg.addEventListener("change", () => { fillTimes(); renderPeople(true); });
-// ფასი იცვლება დღის/დროის არჩევისას (18:00-მდე / 18:00-დან და შაბ-კვ)
-let shownTier;
-function syncTier() { const t = curTier(); if (t !== shownTier) { shownTier = t; renderPeople(true); } }
 const timeSel = $("indTime");
 const ALL_HOURS = Array.from({ length: 15 }, (_, i) => `${pad(i + 8)}:00`);
 // ტრენერის თავისუფალი შუალედები სერვერიდან ({ თარიღი: [[დან, მდე]] წუთებში}); null = ჯერ არ არის შევსებული, ჩანს ყველა საათი
@@ -1516,7 +1508,6 @@ function renderSlots() {
       return xs.length ? `<div><h4>${name}</h4><div class="slots">${xs.map(x =>
         `<button type="button" data-t="${x}" aria-pressed="${x === timeSel.value}"><b>${x}</b><small>${L(endTime(x, m) + "-მდე", "until " + endTime(x, m))}</small></button>`).join("")}</div></div>` : "";
     }).join("");
-  syncTier();
 }
 function setFree(f) { freeSlots = f || null; fillTimes(); }
 $("dayStrip").addEventListener("click", e => {
@@ -1529,7 +1520,6 @@ $("timeGrid").addEventListener("click", e => {
   const b = e.target.closest("[data-t]"); if (!b) return;
   timeSel.value = b.dataset.t;
   $("timeGrid").querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", x === b));
-  syncTier();
 });
 fillTimes();
 
@@ -2168,7 +2158,7 @@ function mockSeed() {
   M.fb.push({ date: md, member: "G1", phone: "555000000", label: GROUPS["mw-19"].label, text: "კარგი ვარჯიში იყო! ფორჰენდი გაცილებით სტაბილურია. შემდეგზე ვიმუშაოთ ბანდეხაზე და კედლიდან ასხლეტილ ბურთზე." });
   M.inds.push({ id: "I0", people: 1, duration: 90, price: 210, date: addDays(t, -3), time: "17:00", name: "დემო მოსწავლე 4", phone: "555000004", experience: "სრულიად დამწყები", status: "ჩატარდა" });
   M.inds.push({ id: "I1", people: 2, duration: 90, price: 270, date: addDays(t, 3), time: "18:00", name: "ნინო (დემო)", phone: "555000000", experience: "0-1 წელი", status: "დადასტურებული" },
-    { id: "I2", people: 1, price: 130, date: addDays(t, 2), time: "12:00", name: "დემო მოსწავლე 4", phone: "555000004", experience: "სრულიად დამწყები", status: "ახალი" });
+    { id: "I2", people: 1, price: 150, date: addDays(t, 2), time: "12:00", name: "დემო მოსწავლე 4", phone: "555000004", experience: "სრულიად დამწყები", status: "ახალი" });
 }
 function mockApi(d) {
   const fail = c => { throw { code: c }; };
@@ -2281,9 +2271,9 @@ function mockApi(d) {
       case "individual": {
         if (!d.token) fail("login_required");
         if (!["სრულიად დამწყები", "0-1 წელი", "1+ წელი"].includes(d.experience)) fail("experience");
-        const dur = +d.duration || 60, s = who(); if (!indPrice(d.date, d.time, dur, d.people)) fail("invalid"); if (d.date < todayStr()) fail("past");
+        const dur = +d.duration || 60, s = who(); if (!indPrice(dur, d.people)) fail("invalid"); if (d.date < todayStr()) fail("past");
         if (!(free()[d.date] || []).some(([a, b]) => toMin(d.time) >= a && toMin(d.time) + dur <= b)) fail("slot_taken");
-        M.inds.push({ id: "I" + ++M.seq, people: d.people, duration: dur, price: indPrice(d.date, d.time, dur, d.people), date: d.date, time: d.time, name: s.name, phone: s.phone, experience: d.experience, status: "ახალი" });
+        M.inds.push({ id: "I" + ++M.seq, people: d.people, duration: dur, price: indPrice(dur, d.people), date: d.date, time: d.time, name: s.name, phone: s.phone, experience: d.experience, status: "ახალი" });
         return { ok: true, token: "s:" + s.phone, free: free() };
       }
       case "register": {
