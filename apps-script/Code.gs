@@ -15,13 +15,14 @@ const BANK_NAME = "გივი ლემონჯავა";
 const TZ = "Asia/Tbilisi";
 const CAPACITY = 4;
 const PASS = 8;
-const PRICES = { 1: 140, 2: 180, 3: 210, 4: 240 };
-// ინდივიდუალური ვარჯიშის ფასი ხანგრძლივობის (წუთი) და ადამიანების მიხედვით
-const DUR_PRICES = {
-  60: PRICES,
-  90: { 1: 210, 2: 270, 3: 315, 4: 360 },
-  120: { 1: 280, 2: 360, 3: 420, 4: 480 },
+// ინდივიდუალური ვარჯიშის 1 საათის ფასი ადამიანების მიხედვით:
+// day = ორშ-პარ 18:00-მდე, eve = 18:00-დან და შაბ-კვ ნებისმიერ დროს (ითვლება დაწყების დროით)
+const IND_PRICES = {
+  day: { 1: 130, 2: 170, 3: 200, 4: 230 },
+  eve: { 1: 150, 2: 190, 3: 220, 4: 250 },
 };
+const IND_EVE_FROM = "18:00";
+const DURS = [60, 90, 120]; // ხანგრძლივობა წუთებში; 1.5 და 2 საათი პროპორციულია
 // სტატისტიკა: ტრენერის სუფთა მოგება ერთ ვარჯიშზე
 const PROFIT_IND_HOUR = 80;              // ინდივიდუალური, 1 საათზე (1.5 სთ = 120, 2 სთ = 160)
 const PROFIT_GROUP = { 3: 75, 4: 120 };  // ჯგუფი ადამიანების მიხედვით; 2 ან ნაკლები = 0
@@ -142,6 +143,8 @@ const groupProfit_ = n => PROFIT_GROUP[Math.min(n, 4)] || 0;
 const hm_ = v => { const m = String(v || "").trim().match(/^(\d{1,2})[:.](\d{2})/); return m && +m[1] < 25 ? pad_(+m[1]) + ":" + m[2] : ""; };
 const addDays_ = (s, n) => { const [y, m, d] = s.split("-").map(Number); return new Date(Date.UTC(y, m - 1, d + n)).toISOString().slice(0, 10); };
 const weekday_ = s => { const [y, m, d] = s.split("-").map(Number); return new Date(Date.UTC(y, m - 1, d)).getUTCDay(); };
+const indTier_ = (date, time) => { const w = weekday_(date); return w === 0 || w === 6 || time >= IND_EVE_FROM ? "eve" : "day"; };
+const indPrice_ = (date, time, dur, people) => DURS.includes(dur) && IND_PRICES.day[people] ? Math.round(IND_PRICES[indTier_(date, time)][people] * dur / 60) : 0;
 // მეილი არასავალდებულოა: ცარიელი = არ აქვს, არასწორი ფორმატი = შეცდომა
 const email_ = v => {
   const x = String(v || "").trim().toLowerCase().slice(0, 100);
@@ -396,13 +399,13 @@ function route_(d, db) {
       if (!d.token) fail_("login_required");
       if (!EXPERIENCE.includes(d.experience)) fail_("experience");
       const s = who(), people = Number(d.people), duration = Number(d.duration) || 60;
-      if (!DUR_PRICES[duration] || !DUR_PRICES[duration][people]) fail_("invalid");
+      if (!DURS.includes(duration) || !IND_PRICES.day[people]) fail_("invalid");
       if (mins_(d.time || "00:00") + duration > 24 * 60) fail_("invalid");
       if (!/^\d{4}-\d{2}-\d{2}$/.test(d.date || "") || !/^\d{2}:00$/.test(d.time || "")) fail_("invalid");
       if (d.date < today_()) fail_("past");
       const f = free();
       if (f && !fits_(f[d.date], mins_(d.time), duration)) fail_("slot_taken");
-      const r = db.add("Requests", { id: db.nextId("I"), people, duration, price: DUR_PRICES[duration][people], date: d.date, time: d.time, name: s.name, phone: s.phone, experience: d.experience, status: "ახალი", created: today_() });
+      const r = db.add("Requests", { id: db.nextId("I"), people, duration, price: indPrice_(d.date, d.time, duration, people), date: d.date, time: d.time, name: s.name, phone: s.phone, experience: d.experience, status: "ახალი", created: today_() });
       notify_("ახალი ინდივიდუალური მოთხოვნა", reqLines_(r));
       return { ok: true, token: sToken(s.phone), free: free() };
     }
@@ -879,6 +882,6 @@ const fits_ = (wins, start, dur) => (wins || []).some(([a, b]) => start >= a && 
 function setup() {
   const ss = book_();
   console.log("ცხრილი: " + ss.getUrl());
-  notify_("ახალი ინდივიდუალური მოთხოვნა", reqLines_({ name: "ტესტი", phone: "555123456", date: today_(), time: "19:00", people: 2, duration: 90, price: DUR_PRICES[90][2], experience: EXPERIENCE[1] }));
+  notify_("ახალი ინდივიდუალური მოთხოვნა", reqLines_({ name: "ტესტი", phone: "555123456", date: today_(), time: "19:00", people: 2, duration: 90, price: indPrice_(today_(), "19:00", 90, 2), experience: EXPERIENCE[1] }));
   console.log("სატესტო შეტყობინება გაიგზავნა" + (NOTIFY_EMAIL ? " მეილზე" : "") + (WHATSAPP_PHONE && CALLMEBOT_APIKEY ? " და WhatsApp-ში" : ""));
 }
