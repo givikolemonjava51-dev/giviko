@@ -41,7 +41,7 @@ const FREE_DAYS = 14; // ინდივიდუალურისთვის 
 
 /* ---------- ცხრილები ---------- */
 const TABLES = {
-  Students: ["phone", "name", "pinHash", "created"],
+  Students: ["phone", "name", "pinHash", "created", "email", "lang"],
   Groups: ["id", "group", "name", "phone", "active", "pending", "purchased", "created", "renew"],
   Requests: ["id", "people", "price", "date", "time", "name", "phone", "experience", "status", "created", "note", "duration"],
   Attendance: ["date", "kind", "label", "member", "phone", "status"],
@@ -140,6 +140,13 @@ const groupProfit_ = n => PROFIT_GROUP[Math.min(n, 4)] || 0;
 const hm_ = v => { const m = String(v || "").trim().match(/^(\d{1,2})[:.](\d{2})/); return m && +m[1] < 25 ? pad_(+m[1]) + ":" + m[2] : ""; };
 const addDays_ = (s, n) => { const [y, m, d] = s.split("-").map(Number); return new Date(Date.UTC(y, m - 1, d + n)).toISOString().slice(0, 10); };
 const weekday_ = s => { const [y, m, d] = s.split("-").map(Number); return new Date(Date.UTC(y, m - 1, d)).getUTCDay(); };
+// მეილი არასავალდებულოა: ცარიელი = არ აქვს, არასწორი ფორმატი = შეცდომა
+const email_ = v => {
+  const x = String(v || "").trim().toLowerCase().slice(0, 100);
+  if (x && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(x)) fail_("email");
+  return x;
+};
+const lang_ = v => (v === "en" ? "en" : "ka");
 
 function secret_() {
   const props = PropertiesService.getScriptProperties();
@@ -182,7 +189,7 @@ function json_(o) {
 }
 
 const WRITES = ["group", "individual", "register", "waitlist", "waitlist_leave", "renew", "cancel", "reschedule",
-  "admin_mark", "admin_update_request", "admin_renew", "admin_confirm_payment", "admin_cancel_member", "admin_change", "admin_waitlist_remove", "admin_feedback"];
+  "admin_mark", "admin_update_request", "admin_renew", "admin_confirm_payment", "admin_cancel_member", "admin_change", "admin_waitlist_remove", "admin_feedback", "set_email"];
 
 // ხშირი წაკითხვები (განრიგი, კაბინეტი) ინახება ქეშში, რომ ცხრილი ყოველ ჯერზე არ გაიხსნას.
 // ნებისმიერი ჩაწერა ქეშს აახლებს; ცხრილში ხელით შეცვლილი ციფრი საიტზე მაქსიმუმ CACHE_SEC წამში ჩანს.
@@ -273,8 +280,10 @@ function route_(d, db) {
       checkLocked_(phone);
       if (s.pinHash !== hashPin_(phone, d.pin)) { badTry_(phone); fail_("pin_mismatch"); }
       goodTry_(phone);
+      const email = email_(d.email);
+      if (email && !s.email) { s.email = email; s.lang = lang_(d.lang); db.save("Students", s); }
     } else {
-      s = db.add("Students", { phone, name, pinHash: hashPin_(phone, d.pin), created: today_() });
+      s = db.add("Students", { phone, name, pinHash: hashPin_(phone, d.pin), created: today_(), email: email_(d.email), lang: lang_(d.lang) });
     }
     return s;
   };
@@ -283,7 +292,7 @@ function route_(d, db) {
     const s = student(phone); if (!s) fail_("auth");
     const mine = att().filter(a => a.phone === phone), month = today_().slice(0, 7);
     return {
-      name: s.name, phone,
+      name: s.name, phone, email: s.email || "",
       memberships: groups().filter(g => g.phone === phone && active(g) && GROUPS[g.group]).map(g => {
         const G = GROUPS[g.group], u = used(g.id), p = Number(g.purchased) || 0;
         return { id: g.id, group: g.group, label: G.label, days: G.days, time: G.time, since: g.created, pending: bool_(g.pending), renew: bool_(g.renew), purchased: p, used: u, remaining: Math.max(0, p - u) };
@@ -463,10 +472,20 @@ function route_(d, db) {
         checkLocked_(phone);
         if (s.pinHash !== hashPin_(phone, d.pin)) { badTry_(phone); fail_("exists"); }
         goodTry_(phone);
+        const email = email_(d.email);
+        if (email) { s.email = email; s.lang = lang_(d.lang); db.save("Students", s); }
       } else {
-        db.add("Students", { phone, name, pinHash: hashPin_(phone, d.pin), created: today_() });
+        db.add("Students", { phone, name, pinHash: hashPin_(phone, d.pin), created: today_(), email: email_(d.email), lang: lang_(d.lang) });
       }
       return { ok: true, token: sToken(phone), profile: prof(phone) };
+    }
+
+    case "set_email": {
+      const phone = readToken_(d.token, "s"), s = phone && student(phone);
+      if (!s) fail_("auth");
+      s.email = email_(d.email); s.lang = lang_(d.lang);
+      db.save("Students", s);
+      return { ok: true, profile: prof(phone) };
     }
 
     case "login": {
@@ -533,11 +552,15 @@ function route_(d, db) {
     case "admin_update_request": {
       admin();
       const r = inds().find(x => x.id === d.id); if (!r) fail_("invalid");
+      const was = r.status + "|" + r.date + "|" + r.time;
       if (d.date) r.date = d.date;
       if (d.time) r.time = d.time;
       if (d.status) r.status = d.status;
       db.save("Requests", r);
-      return reqs();
+      // დადასტურებისას (ან დადასტურებულის დროის შეცვლისას) მოსწავლეს მეილი მიდის
+      const OK = "დადასტურებული", changed = was !== r.status + "|" + r.date + "|" + r.time;
+      const emailed = r.status === OK && changed ? mailConfirm_(student(r.phone), "individual", r, was.split("|")[0] === OK) : false;
+      return Object.assign(reqs(), { emailed });
     }
 
     case "admin_members": admin(); return mems();
@@ -555,7 +578,11 @@ function route_(d, db) {
     }
 
     case "admin_renew": { admin(); const g = member(); g.purchased = (Number(g.purchased) || 0) + (Number(d.add) || PASS); g.renew = "FALSE"; db.save("Groups", g); return mems(); }
-    case "admin_confirm_payment": { admin(); const g = member(); g.pending = "FALSE"; db.save("Groups", g); return mems(); }
+    case "admin_confirm_payment": {
+      admin(); const g = member(), was = bool_(g.pending); g.pending = "FALSE"; db.save("Groups", g);
+      const emailed = was && GROUPS[g.group] ? mailConfirm_(student(g.phone), "group", g, false) : false;
+      return Object.assign(mems(), { emailed });
+    }
     case "admin_cancel_member": {
       admin(); const g = member(), was = active(g); g.active = "FALSE"; db.save("Groups", g);
       if (was && GROUPS[g.group]) seatFreed(g.group);
@@ -611,6 +638,50 @@ function notify_(subject, lines, html) {
       console.log("WhatsApp (CallMeBot): " + r.getResponseCode() + " " + body.slice(0, 300));
     } catch (e) { console.error("whatsapp notify failed: " + e); }
   }
+}
+
+/* ---------- დასტურის მეილი მოსწავლეს ----------
+   იგზავნება თქვენი Gmail-იდან (სკრიპტი თქვენი სახელით მუშაობს), პასუხი მოდის NOTIFY_EMAIL-ზე.
+   მეილი მიდის მხოლოდ იმ მოსწავლესთან, ვინც რეგისტრაციისას ან კაბინეტში მეილი მიუთითა. */
+const WD_KA_ = ["კვირა", "ორშაბათი", "სამშაბათი", "ოთხშაბათი", "ხუთშაბათი", "პარასკევი", "შაბათი"];
+const WD_EN_ = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+const MON_KA_ = ["იანვარი", "თებერვალი", "მარტი", "აპრილი", "მაისი", "ივნისი", "ივლისი", "აგვისტო", "სექტემბერი", "ოქტომბერი", "ნოემბერი", "დეკემბერი"];
+const MON_EN_ = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+function niceDate_(s, en) {
+  const [, m, d] = s.split("-").map(Number), w = weekday_(s);
+  return en ? `${WD_EN_[w]}, ${MON_EN_[m - 1]} ${d}` : `${d} ${MON_KA_[m - 1]}, ${WD_KA_[w]}`;
+}
+const escHtml_ = v => String(v ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+function mailConfirm_(s, kind, x, moved) {
+  if (!s || !s.email) return false;
+  const en = s.lang === "en", T = (ka, eng) => (en ? eng : ka), first = String(s.name || "").trim().split(" ")[0];
+  let subject, intro, rows;
+  if (kind === "individual") {
+    subject = moved ? T("ვარჯიშის დრო შეიცვალა", "Your training time has changed") : T("ვარჯიში დადასტურებულია ✓", "Your training is confirmed ✓");
+    intro = moved ? T("შენი ინდივიდუალური ვარჯიშის დრო შეიცვალა. ახალი დრო:", "The time of your individual training has changed. New time:")
+      : T("შენი ინდივიდუალური ვარჯიში დადასტურებულია.", "Your individual training is confirmed.");
+    rows = [[T("თარიღი", "Date"), niceDate_(x.date, en)], [T("დრო", "Time"), x.time + "–" + endTime_(x)], [T("ხანგრძლივობა", "Duration"), (dur_(x) / 60) + T(" სთ", " h")],
+      [T("ადამიანი", "People"), x.people], [T("ფასი", "Price"), x.price + " ₾"], [T("ადგილი", "Place"), PLACE]];
+  } else {
+    const G = GROUPS[x.group];
+    subject = T("ჯგუფში ჩარიცხვა დადასტურებულია ✓", "You're in the group ✓");
+    intro = T("გადახდა მივიღე, ჯგუფში ჩარიცხული ხარ.", "I've received your payment, you're in the group.");
+    rows = [[T("ჯგუფი", "Group"), G.label], [T("აბონემენტი", "Pass"), x.purchased + T(" ვარჯიში", " sessions")], [T("ადგილი", "Place"), PLACE]];
+  }
+  const outro = T("თუ ვერ მოდიხარ, გააუქმე კაბინეტიდან ან უპასუხე ამ მეილს.", "If you can't make it, cancel in your account or reply to this email.");
+  const hi = T("გამარჯობა", "Hi") + " " + first + "!";
+  const body = [hi, "", intro, "", ...rows.map(r => r[0] + ": " + r[1]), "", outro, "", "Giviko"].join("\n");
+  const html = `<div style="font-family:Arial,sans-serif;font-size:15px;line-height:1.5;color:#1d2a2a">
+<p>${escHtml_(hi)}</p><p>${escHtml_(intro)}</p>
+<table style="border-collapse:collapse">${rows.map(r => `<tr><td style="padding:4px 16px 4px 0;color:#667">${escHtml_(r[0])}</td><td style="padding:4px 0"><b>${escHtml_(r[1])}</b></td></tr>`).join("")}</table>
+<p>${escHtml_(outro)}</p><p>Giviko</p></div>`;
+  try {
+    const opts = { to: s.email, subject, body, htmlBody: html, name: "Giviko" };
+    if (NOTIFY_EMAIL) opts.replyTo = NOTIFY_EMAIL;
+    MailApp.sendEmail(opts);
+    return true;
+  } catch (e) { console.error("student email failed: " + e); return false; }
 }
 
 /* ---------- შეხსენებები: ვარჯიშამდე 24 და 2 საათით ადრე ----------
