@@ -85,6 +85,8 @@ a { color: var(--accent); }
 
 /* Sections */
 section { padding-block: 32px; }
+/* ბმულით გადასვლისას სექციის სათაური ზუსტად ზედა მენიუს ქვემოთ ჩანდეს (--hdr = მენიუს სიმაღლე, JS-ით) */
+section[id] { scroll-margin-top: calc(var(--hdr, 72px) - 20px); }
 .sec-head { display: flex; justify-content: space-between; align-items: end; gap: 16px; flex-wrap: wrap; margin-bottom: 24px; }
 .sec-head h2 { font-size: clamp(34px, 5vw, 52px); text-transform: uppercase; }
 .sec-head p { color: var(--muted); margin: 0; max-width: 48ch; }
@@ -1093,6 +1095,8 @@ const errText = e => (lang === "en" ? ERR_EN : ERR)[e] || L("ვერ გაი
 function say(el, text, kind) { el.textContent = text || ""; el.className = "msg" + (kind ? " " + kind : ""); }
 
 /* ---------- Routing ---------- */
+const setHdr = () => document.documentElement.style.setProperty("--hdr", (document.querySelector("header.top")?.offsetHeight || 72) + "px");
+setHdr(); addEventListener("resize", setHdr);
 function route() {
   const h = location.hash.slice(1);
   const view = h === "cabinet" ? "cabinet" : h === "trainer" ? "trainer" : "home";
@@ -1306,7 +1310,25 @@ $("packRows").addEventListener("click", e => {
   if (openPack >= 0) $("packRows").children[openPack].scrollIntoView({ block: "nearest", behavior: "smooth" });
 });
 // ფასის ბარათზე დაჭერა: ინდივიდუალურზე ჩაწერის ფორმაში იგივე ხანგრძლივობით და ადამიანებით, ჯგუფურზე განრიგში
-const goTo = id => { const el = $(id), top = el.getBoundingClientRect().top + scrollY - (document.querySelector("header.top")?.offsetHeight || 72) - 8; scrollTo({ top, behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" }); };
+// გადასვლა სექციაზე: რბილი სქროლი, ბოლოს კი შემოწმება (სქროლისას სურათები/განრიგი ჩაიტვირთება და გვერდი იწევს)
+function goTo(id) {
+  const el = $(id); if (!el) return;
+  el.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+  let done = false;
+  const settle = () => { if (done) return; done = true; removeEventListener("scrollend", settle); el.scrollIntoView({ behavior: "auto" }); };
+  addEventListener("scrollend", settle);
+  setTimeout(settle, 1200);
+}
+// გვერდის შიდა ბმულები (#groups, #individual...): ყოველ დაჭერაზე ზუსტად სათაურზე ჩამოვიდეს, კაბინეტიდანაც
+document.addEventListener("click", e => {
+  const a = e.target.closest('a[href^="#"]'); if (!a || e.defaultPrevented) return;
+  const id = a.getAttribute("href").slice(1), el = id && document.getElementById(id);
+  if (!el || el.tagName !== "SECTION" || !$("viewHome").contains(el)) return;
+  e.preventDefault();
+  if ($("viewHome").hidden) { history.pushState(null, "", "#" + id); route(); }
+  else history.replaceState(null, "", "#" + id);
+  requestAnimationFrame(() => goTo(id));
+});
 function pickIndividual(n) {
   $("d" + priceM).checked = true; fillTimes();
   renderPeople(); $("p" + n).checked = true; setTotal(priceText(curDur(), n), true);
