@@ -589,13 +589,23 @@ function route_(d, db) {
 
     case "admin_students": {
       admin();
+      // აქტიური = ჯგუფის აბონემენტზე დარჩენილი ვარჯიში, დაგეგმილი ინდივიდუალური ან გადახდილი პაკეტი
+      const t = today_();
       return { ok: true, students: students().map(s => {
-        const mine = groups().filter(g => g.phone === s.phone && active(g) && GROUPS[g.group]);
-        const done = att().filter(a => a.phone === s.phone && a.status === "მოვიდა").map(a => a.date).sort();
-        return { name: s.name, phone: s.phone, created: s.created, groups: mine.map(g => GROUPS[g.group].label),
-          remaining: mine.length ? mine.reduce((x, g) => x + Math.max(0, (Number(g.purchased) || 0) - used(g.id)), 0) : null,
-          attended: done.length, last: done[done.length - 1] || "",
-          individual: inds().filter(r => r.phone === s.phone && r.status !== "გაუქმებული").length };
+        const mine = groups().filter(g => g.phone === s.phone && active(g) && GROUPS[g.group]).map(g => {
+          const u = used(g.id), p = Number(g.purchased) || 0;
+          return { label: GROUPS[g.group].label, purchased: p, used: u, remaining: Math.max(0, p - u), pending: bool_(g.pending), renew: bool_(g.renew) };
+        });
+        const marks = att().filter(a => a.phone === s.phone), done = marks.filter(a => a.status === "მოვიდა").map(a => a.date).sort();
+        const ind = inds().filter(r => r.phone === s.phone && r.status !== "გაუქმებული");
+        const next = ind.filter(r => (r.status === "ახალი" || r.status === "დადასტურებული") && r.date >= t).sort((a, b) => (a.date + a.time < b.date + b.time ? -1 : 1));
+        const pk = packs().filter(k => k.phone === s.phone).map(k => ({ lessons: Number(k.lessons), people: Number(k.people), status: k.status, created: k.created }));
+        const remaining = mine.length ? mine.reduce((x, g) => x + g.remaining, 0) : null;
+        return { name: s.name, phone: s.phone, email: s.email || "", created: s.created,
+          groups: mine.map(g => g.label), memberships: mine, remaining,
+          attended: done.length, missed: marks.filter(a => a.status === "გააცდინა").length, last: done[done.length - 1] || "",
+          individual: ind.length, upcoming: next.map(r => ({ date: r.date, time: r.time, status: r.status })), packs: pk,
+          active: remaining > 0 || next.length > 0 || pk.some(k => k.status === "აქტიური") };
       }).sort((a, b) => (a.created < b.created ? 1 : -1)) };
     }
 

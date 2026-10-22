@@ -263,6 +263,8 @@ fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
 .db-tools input { max-width: 320px; }
 .db-tools .count { color: var(--muted); font-size: 14px; }
 table.db td .chip { margin: 2px 4px 2px 0; }
+table.db td .db-sub { display: block; font-size: 12px; color: var(--muted); margin-top: 2px; }
+table.db tr.off td { color: var(--muted); }
 .as-user { display: flex; align-items: center; gap: 10px; padding: 12px 14px; background: var(--accent-soft); border-radius: 10px; font-size: 14px; }
 
 /* Dialog */
@@ -748,7 +750,7 @@ table.hist td.n { text-align: right; white-space: nowrap; }
       <button role="tab" aria-selected="true" data-tab="att">დასწრება</button>
       <button role="tab" aria-selected="false" data-tab="req">მოთხოვნები <span class="badge" id="reqBadge" hidden></span></button>
       <button role="tab" aria-selected="false" data-tab="mem">ჯგუფები <span class="badge" id="payBadge" hidden></span></button>
-      <button role="tab" aria-selected="false" data-tab="db">რეგისტრირებულები</button>
+      <button role="tab" aria-selected="false" data-tab="db">მოსწავლეები</button>
       <button role="tab" aria-selected="false" data-tab="st">სტატისტიკა</button>
     </div>
     <div data-pane="att">
@@ -764,6 +766,7 @@ table.hist td.n { text-align: right; white-space: nowrap; }
     <div data-pane="req" hidden><div class="sessions" id="reqList"></div></div>
     <div data-pane="mem" hidden><div class="card mlist" id="memList"></div></div>
     <div data-pane="db" hidden>
+      <div class="stats st-cards" id="dbCards"></div>
       <div class="db-tools">
         <input id="dbSearch" type="search" placeholder="ძებნა: სახელი ან ნომერი" aria-label="ძებნა">
         <span class="count" id="dbCount"></span>
@@ -2276,8 +2279,11 @@ $("memList").addEventListener("click", async e => {
   } catch (err) { b.disabled = false; say($("trErr"), errText(), "err"); }
 });
 
-// Registered students database
-let dbRows = [];
+// Students: active (sessions left, a planned individual or a paid pack) and inactive
+let dbRows = [], dbSel = "on";
+// ძველი სერვერი active-ს არ აბრუნებს: მაშინ აქტიურია, ვისაც აბონემენტზე ვარჯიში დარჩა
+const isOn = s => s.active != null ? s.active : s.remaining > 0;
+const isLow = s => isOn(s) && s.remaining != null && s.remaining <= 2;
 async function loadStudents() {
   $("dbList").innerHTML = skelHtml(4);
   try {
@@ -2287,23 +2293,49 @@ async function loadStudents() {
   } catch (e) { say($("trErr"), errText(), "err"); }
 }
 function renderStudents() {
+  const sets = [
+    { k: "on", t: "აქტიური", f: isOn },
+    { k: "low", t: "მალე ამოეწურება (≤2)", f: isLow },
+    { k: "off", t: "არააქტიური", f: s => !isOn(s) },
+    { k: "all", t: "სულ რეგისტრირებული", f: () => true },
+  ];
+  $("dbCards").innerHTML = sets.map(x => `<button type="button" class="stat" data-db="${x.k}" aria-pressed="${x.k === dbSel}">
+    <b>${dbRows.filter(x.f).length}</b><span>${x.t}</span></button>`).join("");
+  const set = sets.find(x => x.k === dbSel);
   const q = $("dbSearch").value.trim().toLowerCase(), qd = q.replace(/\D/g, "");
-  const rows = dbRows.filter(s => !q || s.name.toLowerCase().includes(q) || (qd && s.phone.includes(qd)));
-  $("dbCount").textContent = `სულ ${dbRows.length} რეგისტრირებული` + (q ? ` · ნაპოვნია ${rows.length}` : "");
+  const rows = dbRows.filter(set.f).filter(s => !q || s.name.toLowerCase().includes(q) || (qd && s.phone.includes(qd)));
+  // აქტიურები: ვისაც ნაკლები დარჩა, ზემოთ; არააქტიურები: ბოლოს ვინ ივარჯიშა, ზემოთ
+  if (dbSel === "off") rows.sort((a, b) => ((a.last || a.created) < (b.last || b.created) ? 1 : -1));
+  else if (dbSel !== "all") rows.sort((a, b) => (a.remaining ?? 99) - (b.remaining ?? 99));
+  $("dbCount").textContent = `${set.t}: ${rows.length}` + (q ? " (ძებნით)" : "");
+  const left = s => {
+    if (s.memberships) return s.memberships.map(m => `<span class="chip ${m.remaining === 0 ? "no" : m.remaining <= 2 ? "wait" : "ok"}">${m.remaining} / ${m.purchased}</span>`
+      + (m.pending ? `<span class="chip wait">გადაუხდელი</span>` : "") + (m.renew ? `<span class="chip acc">ითხოვს გაგრძელებას</span>` : "")).join("<br>") || "—";
+    return s.remaining == null ? "—" : `<span class="chip ${s.remaining === 0 ? "no" : s.remaining <= 2 ? "wait" : ""}">${s.remaining}</span>`;
+  };
+  const ind = s => {
+    const up = (s.upcoming || []).map(r => `<span class="chip ${r.status === "ახალი" ? "wait" : "acc"}">${esc(r.date)} ${esc(r.time)}</span>`).join("");
+    const pk = (s.packs || []).map(k => `<span class="chip ${k.status === "აქტიური" ? "ok" : "wait"}">პაკეტი ${k.lessons} · ${k.status === "აქტიური" ? "გადახდილი" : "გადაუხდელი"}</span>`).join("");
+    return up + pk + (s.individual ? `<span class="db-sub">სულ ${s.individual}</span>` : up || pk ? "" : "—");
+  };
   $("dbList").innerHTML = rows.length ? `<table class="hist db">
-    <thead><tr><th>სახელი</th><th>ტელეფონი</th><th>რეგისტრაცია</th><th>ჯგუფი</th><th>დარჩა</th><th>ვარჯიშები</th><th>ბოლო ვარჯიში</th><th>ინდ.</th></tr></thead>
-    <tbody>${rows.map(s => `<tr>
-      <td><b>${esc(s.name)}</b></td>
-      <td class="d">${fmtPhone(s.phone)}</td>
-      <td class="d">${esc(s.created)}</td>
-      <td>${s.groups.length ? s.groups.map(g => `<span class="chip acc">${esc(g)}</span>`).join("") : `<span class="hint">—</span>`}</td>
-      <td>${s.remaining == null ? "—" : `<span class="chip ${s.remaining === 0 ? "no" : s.remaining <= 2 ? "wait" : ""}">${s.remaining}</span>`}</td>
-      <td>${s.attended}</td>
+    <thead><tr><th>სახელი</th><th>ტელეფონი</th><th>ჯგუფი</th><th>დარჩა</th><th>ინდივიდუალური</th><th>ვარჯიშები</th><th>ბოლო ვარჯიში</th><th>რეგისტრაცია</th></tr></thead>
+    <tbody>${rows.map(s => `<tr${isOn(s) ? "" : ` class="off"`}>
+      <td><b>${esc(s.name)}</b>${dbSel === "all" ? `<span class="db-sub">${isOn(s) ? "აქტიური" : "არააქტიური"}</span>` : ""}</td>
+      <td class="d"><a href="${waLink("995" + s.phone)}" target="_blank" rel="noopener">${fmtPhone(s.phone)}</a></td>
+      <td>${s.groups.length ? s.groups.map(g => `<span class="chip acc">${esc(g)}</span>`).join("<br>") : `<span class="hint">—</span>`}</td>
+      <td>${left(s)}</td>
+      <td>${ind(s)}</td>
+      <td>${s.attended}${s.missed ? `<span class="db-sub">გააცდინა ${s.missed}</span>` : ""}</td>
       <td class="d">${esc(s.last) || "—"}</td>
-      <td>${s.individual || "—"}</td>
+      <td class="d">${esc(s.created)}</td>
     </tr>`).join("")}</tbody></table>`
-    : `<p class="empty">${dbRows.length ? "ვერაფერი მოიძებნა." : "ჯერ არავინ დარეგისტრირებულა."}</p>`;
+    : `<p class="empty">${!dbRows.length ? "ჯერ არავინ დარეგისტრირებულა." : q ? "ვერაფერი მოიძებნა." : "ამ სიაში ჯერ არავინაა."}</p>`;
 }
+$("dbCards").addEventListener("click", e => {
+  const b = e.target.closest("[data-db]"); if (!b) return;
+  dbSel = b.dataset.db; renderStudents();
+});
 $("dbSearch").addEventListener("input", renderStudents);
 
 /* ================= DEMO BACKEND =================
@@ -2316,7 +2348,8 @@ function mockSeed() {
   M.students.push({ phone: "555000000", name: "ნინო (დემო)", pin: "1234", created: addDays(t, -20) },
     { phone: "555000002", name: "დემო მოსწავლე 2", pin: "1111", created: addDays(t, -18) },
     { phone: "555000003", name: "დემო მოსწავლე 3", pin: "2222", created: addDays(t, -9) },
-    { phone: "555000004", name: "დემო მოსწავლე 4", pin: "3333", created: addDays(t, -2) });
+    { phone: "555000004", name: "დემო მოსწავლე 4", pin: "3333", created: addDays(t, -2) },
+    { phone: "555000005", name: "დემო მოსწავლე 5", pin: "4444", created: addDays(t, -60) });
   const g1 = { id: "G1", group: "mw-19", name: "ნინო (დემო)", phone: "555000000", active: true, purchased: 8, created: addDays(t, -20) };
   M.groups.push(g1,
     { id: "G2", group: "tt-20", name: "დემო მოსწავლე 2", phone: "555000002", active: true, purchased: 8, created: addDays(t, -20) },
@@ -2523,11 +2556,17 @@ function mockApi(d) {
       case "admin_pack_paid":
       case "admin_pack_cancel": { admin(); const k = M.packs.find(x => x.id === d.id); if (!k) fail("invalid"); k.status = d.action === "admin_pack_paid" ? "აქტიური" : "გაუქმებული"; return mems(); }
       case "admin_students": admin(); return { ok: true, students: M.students.map(s => {
-        const mine = M.groups.filter(g => g.phone === s.phone && g.active);
-        const done = M.att.filter(a => a.phone === s.phone && a.status === "მოვიდა").map(a => a.date).sort();
-        return { name: s.name, phone: s.phone, created: s.created, groups: mine.map(g => GROUPS[g.group].label),
-          remaining: mine.length ? mine.reduce((x, g) => x + Math.max(0, g.purchased - used(g.id)), 0) : null,
-          attended: done.length, last: done[done.length - 1] || "", individual: M.inds.filter(r => r.phone === s.phone && r.status !== "გაუქმებული").length };
+        const mine = M.groups.filter(g => g.phone === s.phone && g.active).map(g => ({ label: GROUPS[g.group].label, purchased: g.purchased, used: used(g.id),
+          remaining: Math.max(0, g.purchased - used(g.id)), pending: !!g.pending, renew: !!g.renew }));
+        const marks = M.att.filter(a => a.phone === s.phone), done = marks.filter(a => a.status === "მოვიდა").map(a => a.date).sort();
+        const ind = M.inds.filter(r => r.phone === s.phone && r.status !== "გაუქმებული");
+        const next = ind.filter(r => (r.status === "ახალი" || r.status === "დადასტურებული") && r.date >= todayStr()).sort((a, b) => (a.date + a.time < b.date + b.time ? -1 : 1));
+        const pk = M.packs.filter(k => k.phone === s.phone && k.status !== "გაუქმებული").map(k => ({ lessons: k.lessons, people: k.people, status: k.status, created: k.created }));
+        const remaining = mine.length ? mine.reduce((x, g) => x + g.remaining, 0) : null;
+        return { name: s.name, phone: s.phone, email: s.email || "", created: s.created, groups: mine.map(g => g.label), memberships: mine, remaining,
+          attended: done.length, missed: marks.filter(a => a.status === "გააცდინა").length, last: done[done.length - 1] || "",
+          individual: ind.length, upcoming: next.map(r => ({ date: r.date, time: r.time, status: r.status })), packs: pk,
+          active: remaining > 0 || next.length > 0 || pk.some(k => k.status === "აქტიური") };
       }).sort((a, b) => (a.created < b.created ? 1 : -1)) };
       case "admin_renew": { admin(); const g = M.groups.find(x => x.id === d.member); if (!g) fail("invalid"); g.purchased += d.add; g.renew = false; return mems(); }
       case "admin_confirm_payment": { admin(); const g = M.groups.find(x => x.id === d.member); if (!g) fail("invalid"); g.pending = false; return mems(); }
